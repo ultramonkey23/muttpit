@@ -7,7 +7,7 @@
  * reuse the ghost allocation logic (ALLOC/PREFS from ghosts.ts) as the field.
  */
 
-import { STRAINS, type StrainId } from "../engine/content";
+import { STRAINS, TRICKS, type StrainId } from "../engine/content";
 import { simulateBattle, type Dog } from "../engine/battle";
 import { ALLOC, PREFS, PERSONALITIES, type Personality } from "./ghosts";
 
@@ -23,6 +23,9 @@ export interface ArchetypeOutcome extends Pick<Archetype, "id" | "kind"> {
   draws: number;
   bouts: number;
   winRate: number;
+  /** strain archetypes only: win rate over intra-strain-field bouts — the
+   * isolated strain comparison (identical template, only the strain varies) */
+  strainField?: { wins: number; losses: number; draws: number; bouts: number; winRate: number };
 }
 
 export interface BalanceReport {
@@ -60,12 +63,22 @@ function strainDogs(strain: StrainId): Dog[] {
   }));
 }
 
+function isDamaging(trickId: string): boolean {
+  return (TRICKS[trickId]?.effects ?? []).some((e) => e.kind === "damage" || e.kind === "damageAll");
+}
+
 function personalityDogs(personality: Personality): Dog[] {
   const alloc = ALLOC[personality];
   const prefs = PREFS[personality];
   const pi = PERSONALITIES.indexOf(personality);
+  const damaging = prefs.filter(isDamaging);
   return [0, 1, 2].map((i) => {
     const biteOrder = [0, 1, 2, 3].map((k) => prefs[(i * 4 + k) % prefs.length]);
+    // a bench must be able to close a bout: any order with no bite at all gets
+    // one damage trick, displacing a trick the rest of the field still covers
+    if (damaging.length > 0 && !biteOrder.some(isDamaging)) {
+      biteOrder[0] = damaging[i % damaging.length];
+    }
     return {
       id: `bal-${personality}-${i}`,
       name: `${personality} bench ${i + 1}`,
@@ -73,7 +86,7 @@ function personalityDogs(personality: Personality): Dog[] {
       grit: alloc.grit,
       fang: alloc.fang,
       flea: alloc.flea,
-      biteOrder,
+      biteOrder: biteOrder.slice(0, 4),
       scars: [],
     };
   });
@@ -118,6 +131,9 @@ export function runBalanceReport(bouts: number = MIN_BOUTS): BalanceReport {
     draws: 0,
     bouts: 0,
     winRate: 0,
+    ...(a.kind === "strain"
+      ? { strainField: { wins: 0, losses: 0, draws: 0, bouts: 0, winRate: 0 } }
+      : {}),
   }));
 
   const target = Math.max(MIN_BOUTS, Math.floor(bouts));
@@ -130,17 +146,29 @@ export function runBalanceReport(bouts: number = MIN_BOUTS): BalanceReport {
     for (const [i, j] of pairings) {
       const result = simulateBattle(archetypes[i].dogs, archetypes[j].dogs, seed);
       played += 1;
-      outcomes[i].bouts += 1;
-      outcomes[j].bouts += 1;
+      const bothStrain = archetypes[i].kind === "strain" && archetypes[j].kind === "strain";
+      const tally = (idx: number, field: "win" | "loss" | "draw") => {
+        const o = outcomes[idx];
+        if (field === "win") o.wins += 1;
+        else if (field === "loss") o.losses += 1;
+        else o.draws += 1;
+        o.bouts += 1;
+        if (bothStrain && o.strainField) {
+          if (field === "win") o.strainField.wins += 1;
+          else if (field === "loss") o.strainField.losses += 1;
+          else o.strainField.draws += 1;
+          o.strainField.bouts += 1;
+        }
+      };
       if (result.winner === 0) {
-        outcomes[i].wins += 1;
-        outcomes[j].losses += 1;
+        tally(i, "win");
+        tally(j, "loss");
       } else if (result.winner === 1) {
-        outcomes[j].wins += 1;
-        outcomes[i].losses += 1;
+        tally(j, "win");
+        tally(i, "loss");
       } else {
-        outcomes[i].draws += 1;
-        outcomes[j].draws += 1;
+        tally(i, "draw");
+        tally(j, "draw");
       }
     }
     pass += 1;
@@ -148,6 +176,12 @@ export function runBalanceReport(bouts: number = MIN_BOUTS): BalanceReport {
 
   for (const o of outcomes) {
     o.winRate = (o.wins + 0.5 * o.draws) / o.bouts;
+    if (o.strainField) {
+      o.strainField.winRate =
+        o.strainField.bouts > 0
+          ? (o.strainField.wins + 0.5 * o.strainField.draws) / o.strainField.bouts
+          : 0;
+    }
   }
 
   return { bouts: played, seeds, archetypes: outcomes };

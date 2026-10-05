@@ -155,7 +155,7 @@ function pushEvent(
 }
 
 function currentFang(f: Fighter): number {
-  const grem = f.dog.strain === "grem" && f.hp < f.maxHp / 2 ? 3 : 0;
+  const grem = f.dog.strain === "grem" && f.hp < f.maxHp / 2 ? 2 : 0;
   return f.fang + grem + f.statuses.rage;
 }
 

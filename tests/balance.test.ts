@@ -32,6 +32,23 @@ describe("balance harness", () => {
     }
   });
 
+  it("keeps every strain win rate within 0.25-0.75 vs the isolated strain field", () => {
+    const report = runBalanceReport();
+    const strains = report.archetypes.filter((a) => a.kind === "strain" && a.strainField);
+    expect(strains.length).toBeGreaterThan(0);
+    for (const outcome of strains) {
+      const rate = outcome.strainField!.winRate;
+      expect(
+        rate,
+        `${outcome.id} strainField winRate ${rate.toFixed(3)}`,
+      ).toBeGreaterThanOrEqual(0.25);
+      expect(
+        rate,
+        `${outcome.id} strainField winRate ${rate.toFixed(3)}`,
+      ).toBeLessThanOrEqual(0.75);
+    }
+  });
+
   it("plays every trick id in at least one archetype bite order", () => {
     const played = new Set<string>();
     for (const archetype of buildArchetypes()) {

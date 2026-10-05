@@ -55,7 +55,7 @@ export const STRAINS: Record<StrainId, StrainDef> = {
     id: "brute",
     name: "Brute",
     blurb: "Solves problems by becoming a larger problem.",
-    base: { grit: 18, fang: 4, flea: 2 },
+    base: { grit: 19, fang: 4, flea: 2 },
     trait: "Heavy — takes 2 less from barrage tricks.",
   },
   pupp: {

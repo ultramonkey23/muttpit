@@ -19,9 +19,9 @@ export interface GhostKennel {
   kennel: Kennel;
 }
 
-const PERSONALITIES: Personality[] = ["aggressive", "defensive", "trickster", "pack", "feral"];
+export const PERSONALITIES: Personality[] = ["aggressive", "defensive", "trickster", "pack", "feral"];
 
-const PREFS: Record<Personality, string[]> = {
+export const PREFS: Record<Personality, string[]> = {
   aggressive: ["maul", "snap", "flurry", "verdict", "sic", "packpounce", "goForTheEyes"],
   defensive: ["cower", "boneshield", "rally", "countersnarl", "lickwounds", "secondwind", "snap"],
   trickster: ["mudtoss", "goad", "goForTheEyes", "fleabite", "tickharvest", "shriek", "playdead"],
@@ -29,7 +29,7 @@ const PREFS: Record<Personality, string[]> = {
   feral: ["spite", "marrow", "backbite", "fleabite", "sic", "maul"],
 };
 
-const ALLOC: Record<Personality, { grit: number; fang: number; flea: number }> = {
+export const ALLOC: Record<Personality, { grit: number; fang: number; flea: number }> = {
   aggressive: { grit: 1, fang: 6, flea: 3 },
   defensive: { grit: 6, fang: 2, flea: 2 },
   trickster: { grit: 2, fang: 3, flea: 5 },

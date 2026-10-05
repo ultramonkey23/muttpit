@@ -1,0 +1,20 @@
+{
+  "name": "muttpit",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "MUTTPIT \u2014 an async auto-battler scrap league for mongrels with something to prove.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "size": "node scripts/size-check.mjs",
+    "verify": "vitest run && tsc --noEmit && vite build && node scripts/size-check.mjs dist"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10",
+    "vitest": "^2.1.4"
+  }
+}

@@ -277,7 +277,7 @@ function viewTitle(): string {
     <div class="panel bone">
       <p><b>Draft mongrels, write their bite order, mail your kennel into the Pit —
       every verdict keeps its receipts.</b></p>
-      <p style="margin-top:8px">Built by the Ultramonkeydog Lab and MAW for Ultramonkeydog Studios.
+      <p style="margin-top:8px">Built for Ultramonkeydog Studios.
       Non-live PvP by kennel codes and auditable verdict packets. Leagues are real seasons with scars.</p>
       <div class="btnrow">
         ${save ? `<button class="btn lime" data-act="continue">Continue — ${esc(save.kennel.name)}</button>` : ""}

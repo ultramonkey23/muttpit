@@ -76,6 +76,8 @@ let screen: Screen = save ? "kennel" : "title";
 let bout: Bout | null = null;
 let msg = "";
 let teachTarget: string | null = null;
+// mailbox drafts survive re-renders (a Quig toast must not eat pasted mail)
+const drafts = { oppCode: "", oppPacket: "" };
 
 function loadSave(): Save | null {
   try {
@@ -487,12 +489,12 @@ function viewMailbox(): string {
     </div>
     <div class="panel">
       <h3>Challenge a mailed kennel</h3>
-      <textarea id="opp-code" rows="4" placeholder="paste their kennel code here"></textarea>
+      <textarea id="opp-code" rows="4" placeholder="paste their kennel code here">${esc(drafts.oppCode)}</textarea>
       <div class="btnrow"><button class="btn lime" data-act="challenge">fight it (deterministic bout)</button></div>
     </div>
     <div class="panel">
       <h3>Audit a Verdict Packet</h3>
-      <textarea id="opp-packet" rows="4" placeholder="paste a verdict packet here — the Pit re-derives it"></textarea>
+      <textarea id="opp-packet" rows="4" placeholder="paste a verdict packet here — the Pit re-derives it">${esc(drafts.oppPacket)}</textarea>
       <div class="btnrow"><button class="btn violet" data-act="audit">re-derive the verdict</button></div>
     </div>
     <div class="panel">
@@ -570,6 +572,12 @@ function viewBout(): string {
 }
 
 // ---------------------------------------------------------------- events
+
+app.addEventListener("input", (e) => {
+  const t = e.target as HTMLElement;
+  if (t instanceof HTMLTextAreaElement && t.id === "opp-code") drafts.oppCode = t.value;
+  if (t instanceof HTMLTextAreaElement && t.id === "opp-packet") drafts.oppPacket = t.value;
+});
 
 app.addEventListener("click", (e) => {
   const target = (e.target as HTMLElement).closest<HTMLElement>("[data-act]");
@@ -821,11 +829,17 @@ async function copyText(text: string): Promise<void> {
   lastPacket: () => bout?.packetCode ?? "",
   setOppCode: (code: string) => {
     const ta = document.getElementById("opp-code") as HTMLTextAreaElement | null;
-    if (ta) ta.value = code;
+    if (ta) {
+      ta.value = code;
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   },
   setOppPacket: (code: string) => {
     const ta = document.getElementById("opp-packet") as HTMLTextAreaElement | null;
-    if (ta) ta.value = code;
+    if (ta) {
+      ta.value = code;
+      ta.dispatchEvent(new Event("input", { bubbles: true }));
+    }
   },
 };
 

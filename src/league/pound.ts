@@ -19,12 +19,16 @@ export interface PoundOffer {
 const NAMES = ["Nubbins", "Duchess", "Big Sad", "Officer Grime", "Teeth", "Little Riot", "Baron Mange", "Pockets", "Saint Vitus", "Cricket", "Moms", "Duke Flea", "Bones", "Feral Beth", "Gasket", "Wobbles"];
 const STRAIN_POOL: StrainId[] = ["mongrel", "bonehound", "grem", "cur", "brute", "pupp"];
 
-export function poundOffers(seed: number): PoundOffer {
+export function poundOffers(seed: number, heat = 0): PoundOffer {
   const rng = mulberry32(seed >>> 0);
   const dogs: Dog[] = [];
+  // Progression heat: later seasons / higher divisions roll richer dogs.
+  // Added outside the rng stream so the seed contract (and heat=0 output)
+  // stays byte-identical to the flat-budget Pound.
+  const heatBonus = Math.min(6, Math.max(0, heat));
   for (let i = 0; i < 3; i++) {
     const strain = STRAIN_POOL[rollInt(rng, STRAIN_POOL.length)];
-    const budget = 7 + rollInt(rng, 5);
+    const budget = 7 + rollInt(rng, 5) + heatBonus;
     const grit = 1 + rollInt(rng, Math.max(1, budget - 2));
     const fang = 1 + rollInt(rng, Math.max(1, budget - grit));
     const flea = Math.max(1, budget - grit - fang);

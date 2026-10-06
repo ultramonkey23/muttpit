@@ -353,10 +353,15 @@ function viewKennel(): string {
     </div>`;
 }
 
+/** Pound progression heat: the deeper the career, the hotter the draft. */
+function poundHeat(s: Save): number {
+  return (s.season - 1) + s.division;
+}
+
 function viewPound(): string {
   if (!save) return viewTitle();
   const s = save;
-  const offer = poundOffers(save.poundSeed);
+  const offer = poundOffers(save.poundSeed, poundHeat(save));
   const teachPanel =
     teachTarget !== null
       ? `<div class="panel bone">
@@ -655,7 +660,7 @@ app.addEventListener("click", (e) => {
       }
       break;
     case "buy-dog": {
-      const offer = poundOffers(save!.poundSeed);
+      const offer = poundOffers(save!.poundSeed, poundHeat(save!));
       const dog = offer.dogs[i];
       if (!dog) break;
       if (save!.scrap < DOG_PRICE) {

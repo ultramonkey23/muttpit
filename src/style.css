@@ -319,3 +319,212 @@ textarea, input[type="text"] {
 ::selection { background: var(--gold); color: var(--ink); }
 
 .ticker { scrollbar-width: thin; scrollbar-color: var(--gold) var(--ink); }
+
+
+/* ---------- Wave 1: strategic readability ---------- */
+
+.dogcard .mono-sm,
+.panel.bone .mono-sm {
+  color: #665646;
+  word-break: normal;
+}
+
+.trait-line {
+  color: #665646;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.stat-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 2px solid rgba(18, 12, 8, 0.28);
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.stat-key span {
+  background: rgba(18, 12, 8, 0.09);
+  border: 2px solid var(--ink);
+  padding: 3px 7px;
+}
+
+.bite-label {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 3px;
+  font-family: "Arial Black", Impact, sans-serif;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+}
+
+.bite-label small {
+  font-family: ui-monospace, monospace;
+  font-weight: 400;
+  color: #665646;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.order-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.order-editor .order-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  width: 100%;
+}
+
+.trick-chip {
+  min-width: 0;
+  min-height: 32px;
+  background: var(--violet);
+  color: var(--bone);
+  padding: 4px 7px;
+  font: 700 11px/1.2 ui-monospace, monospace;
+  text-align: left;
+}
+
+.trick-step {
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  margin-right: 5px;
+  align-items: center;
+  justify-content: center;
+  background: var(--bone);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+}
+
+.trick-help {
+  grid-column: 1 / -1;
+  background: #fff4d7;
+  color: #665646;
+  border-top: 1px solid #9b876d;
+  padding: 5px 7px;
+  font-size: 11px;
+  line-height: 1.35;
+}
+
+.how-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.how-grid > div {
+  border: 2px solid var(--bone-dim);
+  background: rgba(232, 220, 196, 0.05);
+  padding: 10px;
+}
+
+.how-grid b {
+  display: block;
+  color: var(--gold);
+  margin-bottom: 5px;
+}
+
+.how-grid span {
+  display: block;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.scout-panel {
+  border-color: var(--gold);
+}
+
+.scout-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+  margin-bottom: 8px;
+}
+
+.scout-head h3 {
+  margin-top: 7px;
+  font-size: 24px;
+}
+
+.scout-callout {
+  border-left: 5px solid var(--cyan);
+  background: rgba(56, 214, 200, 0.08);
+  padding: 8px 10px;
+  margin: 10px 0;
+}
+
+.scout-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.scout-dog {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  border: 2px solid var(--bone-dim);
+  background: rgba(232, 220, 196, 0.05);
+  padding: 7px;
+  min-width: 0;
+}
+
+.scout-dog .portrait {
+  width: 88px;
+  height: auto;
+  border: 2px solid var(--ink);
+}
+
+.scout-copy {
+  min-width: 0;
+}
+
+.scout-copy .trait-line {
+  color: var(--bone-dim);
+  font-size: 11px;
+}
+
+.scout-order {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.scout-order span {
+  border: 1px solid var(--violet);
+  color: var(--bone);
+  padding: 2px 5px;
+  font-size: 10px;
+}
+
+.scout-order b {
+  color: var(--gold);
+}
+
+@media (max-width: 900px) {
+  .how-grid { grid-template-columns: repeat(2, 1fr); }
+  .scout-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 520px) {
+  .how-grid { grid-template-columns: 1fr; }
+  .scout-head { flex-direction: column; }
+  .scout-dog { grid-template-columns: 76px minmax(0, 1fr); }
+  .scout-dog .portrait { width: 76px; }
+  .bite-label { align-items: flex-start; flex-direction: column; }
+  .order-editor .order-row { grid-template-columns: minmax(0, 1fr) repeat(3, 44px); }
+  .trick-chip { min-height: 44px; display: flex; align-items: center; }
+}

@@ -483,7 +483,7 @@ function viewLeague(): string {
               <div class="scout-copy">
                 <b>${esc(slotLabel(i))} · ${esc(d.name)}</b>
                 <div class="trait-line">${esc(strain.name)} — ${esc(strain.trait)}</div>
-                <div class="stats"><span class="chip grit">G ${strain.base.grit + d.grit}</span><span class="chip fang">F ${strain.base.fang + d.fang}</span><span class="chip flea">S ${strain.base.flea + d.flea}</span></div>
+                <div class="stats"><span class="chip grit">GRIT ${strain.base.grit + d.grit}</span><span class="chip fang">FANG ${strain.base.fang + d.fang}</span><span class="chip flea">FLEA ${strain.base.flea + d.flea}</span></div>
                 <div class="scout-order">${d.biteOrder.map((t, ti) => `<span><b>${ti + 1}</b> ${esc(TRICKS[t]?.name ?? t)}</span>`).join("")}</div>
               </div>
             </div>`;

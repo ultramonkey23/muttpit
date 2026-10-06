@@ -68,6 +68,7 @@ interface Bout {
   record?: { kind: MailEntry["kind"]; label: string };
 }
 
+const ROTATE_PRICE = 5;
 const SAVE_KEY = "muttpit.save.v1";
 const app = document.getElementById("app")!;
 
@@ -410,7 +411,7 @@ function viewPound(): string {
       ${offer.tricks.map((t) => `<div><b>${esc(TRICKS[t].name)}</b> — ${esc(TRICKS[t].text)}</div>`).join("")}
       <div class="btnrow">
         <button class="btn violet" data-act="teach-start">teach one</button>
-        <button class="btn secondary" data-act="pound-refresh">shake the cage (new offers — 10 scrap)</button>
+        <button class="btn secondary" data-act="pound-rotate" ${s.scrap < ROTATE_PRICE ? "disabled" : ""}>Rattle the cage — ${ROTATE_PRICE} scrap</button>
       </div>
     </div>`;
 }
@@ -472,10 +473,12 @@ function viewLeague(): string {
     ${closePanel}
     <div class="panel">
       <h3>Standings</h3>
+      <div class="table-scroll">
       <table>
         <tr><th>kennel</th><th>P</th><th>W</th><th>D</th><th>L</th><th>pts</th></tr>
         ${rows}
       </table>
+      </div>
     </div>
     <div class="panel">
       <h3>Season receipts</h3>
@@ -555,9 +558,12 @@ function viewBout(): string {
   const tickerLines = bout.result.events
     .slice(0, bout.idx)
     .map((e, i, arr) => {
+      const prev = arr[i - 1];
+      const sep = (!prev || prev.round !== e.round) ? [`<div class="line hot">— ROUND ${e.round} —</div>`] : [];
       const cls = e.kind === "death" ? "bad" : e.kind === "heal" ? "good" : i === arr.length - 1 ? "hot" : "";
-      return `<div class="line ${cls}">[${e.round}] ${esc(e.text)}</div>`;
+      return [...sep, `<div class="line ${cls}">[${e.round}] ${esc(e.text)}</div>`];
     })
+    .flat()
     .join("");
 
   const banner = done
@@ -664,14 +670,14 @@ app.addEventListener("click", (e) => {
       }
       break;
     }
-    case "pound-refresh":
-      if (save!.scrap < 10) {
-        say("The cage costs 10 scrap to shake.");
+    case "pound-rotate":
+      if (save!.scrap < ROTATE_PRICE) {
+        say("Not enough scrap to rattle the cage.");
       } else {
-        save!.scrap -= 10;
+        save!.scrap -= ROTATE_PRICE;
         save!.poundSeed += 1;
         store();
-        say("New offers.");
+        say("The cage rattles — new dogs and tricks.");
       }
       break;
     case "teach-start":

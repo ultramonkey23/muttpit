@@ -158,8 +158,34 @@ tr.me td { background: var(--gold); color: var(--ink); }
 
 /* ---------- battle stage ---------- */
 
-.battle-stage { display: grid; grid-template-columns: 1fr 180px 1fr; gap: 10px; align-items: start; }
-.team-col { display: flex; flex-direction: column; gap: 10px; }
+.battle-stage { display: flex; flex-direction: row; align-items: stretch; gap: 10px; }
+.fight-row { display: flex; flex-direction: row; gap: 10px; align-items: center; flex: 1; }
+.fight-row.left { justify-content: flex-end; }
+.fight-row.right { justify-content: flex-start; }
+.fighter { position: relative; transition: transform 120ms; will-change: transform; }
+.fighter.lunge-right { transform: translateX(26px); }
+.fighter.lunge-left { transform: translateX(-26px); }
+.fighter.shake { animation: shake 220ms; }
+.fighter.hit-flash { animation: hitflash 220ms; }
+.fighter.dodge { animation: dodge 360ms; }
+.fighter.shield { animation: shield 360ms; }
+.fighter.heal-flash { animation: healflash 360ms; }
+.fighter.ko { animation: ko-fall 600ms forwards; }
+.dmg-num { position: absolute; top: -6px; right: 6px; font-family: "Arial Black", Impact, sans-serif; color: var(--red); font-size: 20px; text-shadow: 2px 2px 0 var(--ink); animation: floatup 700ms forwards; }
+.heal-num { position: absolute; top: -6px; right: 6px; font-family: "Arial Black", Impact, sans-serif; color: var(--lime); font-size: 20px; text-shadow: 2px 2px 0 var(--ink); animation: floatup 700ms forwards; }
+.trick-splash { position: absolute; top: 30%; left: 50%; transform: translate(-50%,-50%) rotate(-4deg); background: var(--violet); color: var(--bone); border: 3px solid var(--ink); box-shadow: var(--shadow); padding: 6px 14px; font-family: "Arial Black", Impact, sans-serif; text-transform: uppercase; font-size: 22px; animation: splash 500ms; z-index: 5; }
+.round-banner { position: absolute; top: 40%; left: 50%; transform: translate(-50%,-50%); background: var(--gold); color: var(--ink); border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 8px 20px; font-family: "Arial Black", Impact, sans-serif; font-size: 28px; text-transform: uppercase; animation: splash 500ms; z-index: 6; }
+.stage-center { position: relative; min-height: 80px; display: flex; align-items: center; justify-content: center; }
+.verdict-banner.slam { animation: slam 420ms cubic-bezier(.2,1.4,.4,1); }
+@keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-6px)} 75%{transform:translateX(6px)} }
+@keyframes hitflash { 0%{filter: brightness(2) saturate(0);} 100%{filter:none;} }
+@keyframes dodge { 0%,100%{transform: translateY(0) rotate(0);} 50%{transform: translateY(-8px) rotate(-6deg); opacity:.7;} }
+@keyframes shield { 0%,100%{box-shadow: none;} 50%{box-shadow: 0 0 0 4px var(--cyan);} }
+@keyframes healflash { 0%{filter: brightness(1.6) sepia(1) hue-rotate(40deg);} 100%{filter:none;} }
+@keyframes ko-fall { 0%{transform: rotate(0) translateY(0); opacity:1;} 100%{transform: rotate(-18deg) translateY(14px); opacity:.35; filter: grayscale(1);} }
+@keyframes floatup { 0%{transform: translateY(0); opacity:1;} 100%{transform: translateY(-26px); opacity:0;} }
+@keyframes splash { 0%{transform: translate(-50%,-50%) scale(.4) rotate(-10deg); opacity:0;} 60%{transform: translate(-50%,-50%) scale(1.1) rotate(2deg); opacity:1;} 100%{transform: translate(-50%,-50%) scale(1) rotate(-4deg); opacity:1;} }
+@keyframes slam { 0%{transform: scale(.6) rotate(-2deg); opacity:0;} 70%{transform: scale(1.08) rotate(1deg);} 100%{transform: scale(1) rotate(0); opacity:1;} }
 
 .fighter {
   border: var(--border);
@@ -284,7 +310,7 @@ textarea, input[type="text"] {
 
 /* keep iOS from zooming inputs on focus and give thumbs real tap targets */
 @media (max-width: 720px) {
-  .battle-stage { grid-template-columns: 1fr; }
+  .battle-stage { flex-direction: column; }
   .center-col { order: -1; }
 
   html, body { font-size: 16px; }
@@ -527,4 +553,18 @@ textarea, input[type="text"] {
   .bite-label { align-items: flex-start; flex-direction: column; }
   .order-editor .order-row { grid-template-columns: minmax(0, 1fr) repeat(3, 44px); }
   .trick-chip { min-height: 44px; display: flex; align-items: center; }
+}
+
+/* ---------- Wave 2: combat-feel playback (reduced-motion safe) ---------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .fighter.lunge-right, .fighter.lunge-left, .fighter.shake, .fighter.dodge,
+  .fighter.ko, .trick-splash, .round-banner, .verdict-banner.slam {
+    animation: none !important;
+    transform: none !important;
+  }
+  .fighter.hit-flash { filter: brightness(1.4); }
+  .fighter.ko { opacity: .35; filter: grayscale(1); }
+  .dmg-num, .heal-num { position: static; display: inline-block; margin-left: 6px; animation: none !important; opacity: 1; }
+  .hpbar .fill { transition: none; }
 }

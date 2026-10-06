@@ -5,6 +5,7 @@
 
 import "./style.css";
 import { dogSvg, pawSvg } from "./art";
+import { eventDelay, eventFeedback } from "./playback";
 import { STRAINS, TRICKS, LINEUP_SIZE, type StrainId } from "./engine/content";
 import type { BattleResult, Dog, Scar } from "./engine/battle";
 import { fnv1a } from "./engine/rng";
@@ -75,6 +76,7 @@ const app = document.getElementById("app")!;
 let save: Save | null = loadSave();
 let screen: Screen = save ? "kennel" : "title";
 let bout: Bout | null = null;
+let playbackToken = 0;
 let msg = "";
 let teachTarget: string | null = null;
 // mailbox drafts survive re-renders (a Quig toast must not eat pasted mail)
@@ -200,9 +202,11 @@ function startBout(
 }
 
 function runTimer(): void {
-  if (bout?.timer) window.clearInterval(bout.timer);
-  bout!.timer = window.setInterval(() => {
-    if (!bout) return;
+  if (bout?.timer) window.clearTimeout(bout.timer);
+  playbackToken++;
+  const myToken = playbackToken;
+  const schedule = () => {
+    if (!bout || myToken !== playbackToken) return;
     if (!bout.playing) return;
     if (bout.idx >= bout.result.events.length) {
       finishBoutPlayback();
@@ -210,13 +214,27 @@ function runTimer(): void {
     }
     bout.idx += 1;
     render();
-  }, 340);
+    if (bout.idx >= bout.result.events.length) {
+      finishBoutPlayback();
+      return;
+    }
+    const prev = bout.result.events[bout.idx - 1];
+    const next = bout.result.events[bout.idx];
+    bout.timer = window.setTimeout(schedule, eventDelay(prev, next));
+  };
+  if (!bout) return;
+  if (bout.idx >= bout.result.events.length) {
+    finishBoutPlayback();
+    return;
+  }
+  const first = bout.result.events[bout.idx];
+  bout.timer = window.setTimeout(schedule, eventDelay(null, first));
 }
 
 function finishBoutPlayback(): void {
   if (!bout) return;
   bout.playing = false;
-  if (bout.timer) window.clearInterval(bout.timer);
+  if (bout.timer) window.clearTimeout(bout.timer);
   bout.timer = null;
   if (bout.record && save) {
     const won = bout.result.winner === 0;
@@ -570,28 +588,46 @@ function viewBout(): string {
   const done = bout.idx >= bout.result.events.length;
   const won = bout.result.winner;
 
-  const fighterCard = (team: 0 | 1, d: Dog, dead: boolean) => {
+  const fb = ev ? eventFeedback(ev, bout.teams) : null;
+  const prevEv = bout.idx > 1 ? bout.result.events[bout.idx - 2] : null;
+  const roundChanged = !!ev && !!prevEv && ev.round !== prevEv.round;
+
+  const fighterCard = (team: 0 | 1, slot: number, d: Dog) => {
     const hp = currentHp(bout!.idx, team, d.name, STRAINS[d.strain].base.grit + d.grit);
     const max = STRAINS[d.strain].base.grit + d.grit;
     const pct = Math.max(0, Math.min(100, (hp / max) * 100));
+    const dead = currentHp(bout!.idx, team, d.name, 0) <= 0 && bout!.idx > 0;
+    let cls = `fighter ${team === 1 ? "enemy" : ""} ${dead ? "dead" : ""}`;
+    let extra = "";
+    if (fb) {
+      if (fb.actor && fb.actor.team === team && fb.actor.slot === slot) {
+        cls += team === 0 ? " lunge-right" : " lunge-left";
+      }
+      if (fb.target && fb.target.team === team && fb.target.slot === slot) {
+        if (fb.kind === "death") cls += " ko";
+        else if (fb.kind === "dodge") cls += " dodge";
+        else if (fb.kind === "shield") cls += " shield";
+        else if (fb.kind === "hit") { cls += " hit-flash shake"; extra = `<span class="dmg-num">-${fb.damage ?? 0}</span>`; }
+        else if (fb.kind === "heal") { cls += " heal-flash"; extra = `<span class="heal-num">+${fb.damage ?? 0}</span>`; }
+      }
+    }
     return `
-      <div class="fighter ${team === 1 ? "enemy" : ""} ${dead ? "dead" : ""}">
-        ${dogSvg(d, 64)}
+      <div class="${cls.trim()}" id="fighter-${team}-${slot}">
+        ${dogSvg(d, 72)}
         <div style="flex:1">
           <b>${esc(d.name)}</b>
           <div class="hpbar"><div class="fill ${pct < 30 ? "low" : ""}" style="width:${pct}%"></div></div>
           <div class="mono-sm">${hp}/${max} grit</div>
         </div>
+        ${extra}
       </div>`;
   };
 
-  const teamCols = (team: 0 | 1) => `
-    <div class="team-col">
-      <h3>${esc(bout!.teamNames[team])}</h3>
-      ${bout!.teams[team]
-        .map((d) => fighterCard(team, d, currentHp(bout!.idx, team, d.name, 0) <= 0 && bout!.idx > 0))
-        .join("")}
-    </div>`;
+  const teamRow = (team: 0 | 1) => {
+    const cards = bout!.teams[team].map((d, slot) => fighterCard(team, slot, d));
+    if (team === 0) cards.reverse();
+    return `<div class="fight-row ${team === 1 ? "right" : "left"}">${cards.join("")}</div>`;
+  };
 
   const tickerLines = bout.result.events
     .slice(0, bout.idx)
@@ -604,8 +640,13 @@ function viewBout(): string {
     .flat()
     .join("");
 
+  const trickName = fb && fb.kind === "trick" && ev ? (ev.text.match(/plays (.+?)\./)?.[1] ?? "") : "";
+  const splash = fb && fb.kind === "trick" && trickName
+    ? `<div class="trick-splash">${esc(trickName)}</div>` : "";
+  const roundBanner = roundChanged ? `<div class="round-banner">ROUND ${ev!.round}</div>` : "";
+
   const banner = done
-    ? `<div class="verdict-banner ${won === 1 ? "lost" : won === -1 ? "draw" : ""}">
+    ? `<div class="verdict-banner slam ${won === 1 ? "lost" : won === -1 ? "draw" : ""}">
         <div class="display">${won === -1 ? "Draw" : won === 0 ? esc(bout.teamNames[0]) : esc(bout.teamNames[1])} takes it</div>
         <p>${bout.result.rounds} rounds · log ${esc(bout.result.logHash)}</p>
         ${bout.scarred.length ? `<p class="scarline">scars: ${bout.scarred.map((s) => `${esc(s.dog)} → ${esc(s.scar.name)}`).join(", ")}</p>` : ""}
@@ -620,9 +661,13 @@ function viewBout(): string {
     <div class="panel gold"><h2>${esc(bout.label)}</h2>
       <p class="mono-sm">round ${ev?.round ?? 0} · deterministic replay · every verdict keeps its receipts</p></div>
     <div class="battle-stage">
-      ${teamCols(0)}
+      ${teamRow(0)}
       <div class="center-col">
-        <div class="trick-flash">${esc(ev ? ev.text.slice(0, 60) : "The Pit locks the gate.")}</div>
+        <div class="stage-center">
+          ${roundBanner}
+          ${splash}
+          <div class="trick-flash">${esc(ev ? ev.text.slice(0, 60) : "The Pit locks the gate.")}</div>
+        </div>
         <div class="btnrow" style="justify-content:center">
           <button class="btn small ${bout.playing ? "danger" : "lime"}" data-act="bout-toggle">${bout.playing ? "pause" : "play"}</button>
           <button class="btn small secondary" data-act="bout-step">step</button>
@@ -630,7 +675,7 @@ function viewBout(): string {
         </div>
         <div class="ticker" id="ticker">${tickerLines}</div>
       </div>
-      ${teamCols(1)}
+      ${teamRow(1)}
     </div>
     ${banner}`;
 }
@@ -886,15 +931,22 @@ app.addEventListener("click", (e) => {
       if (bout) {
         if (bout.idx >= bout.result.events.length) break;
         bout.playing = !bout.playing;
+        playbackToken++;
+        if (bout.timer) window.clearTimeout(bout.timer);
+        if (bout.playing) runTimer();
       }
       break;
     case "bout-step":
+      playbackToken++;
+      if (bout?.timer) window.clearTimeout(bout.timer);
       if (bout && bout.idx < bout.result.events.length) {
         bout.playing = false;
         bout.idx += 1;
       } else if (bout) finishBoutPlayback();
       break;
     case "bout-skip":
+      playbackToken++;
+      if (bout?.timer) window.clearTimeout(bout.timer);
       if (bout) {
         bout.idx = bout.result.events.length;
         finishBoutPlayback();

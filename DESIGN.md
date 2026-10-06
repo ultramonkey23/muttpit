@@ -52,3 +52,11 @@ Street-courtroom comic brutalism. The Pit speaks like a boxing promoter with a f
 - Pure engine (`src/engine`, `src/league`, `src/async`) — no DOM imports; tested with vitest.
 - All art procedural (SVG/CSS from dog hashes) — no binary assets, no image generation.
 - Size budget: `npm run size` measures `dist/` and fails at >= 25 MB.
+
+## Field truth: balance & progression (measured, not vibed)
+
+- The Pit measures its own field: `runBalanceReport` (src/league/balance.ts) round-robins 6 strain + 5 personality archetypes over fixed seeds. Tests gate **both** fields to win rates in 0.25–0.75 (vs the whole field, and strains vs the isolated strain field).
+- Trait truth: grem **VOLATILE** (+2 FANG when bloodied) fires at 75% GRIT — the old 50% threshold almost never triggered because dogs die first. `tests/volatile.test.ts` pins a measured trigger-rate floor.
+- Progression heat: the Pound's offers roll richer as a career deepens — offer budgets gain `min(6, (season-1) + division)` stat points. Season 1 Sewer drafts are scrappy; Crown Pit season 4 drafts are monsters.
+- Ghost pressure: ghost kennel skill scales with season + division, so the ladder actually climbs. Promotion is a harder Pit, not just a fancier name.
+- Reorderable bite orders are the core toy: every dog's trick queue is editable (move/remove) because "write their bite order" is the pitch, not a tooltip.

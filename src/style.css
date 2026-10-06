@@ -137,6 +137,17 @@ h1, h2, h3, .display {
 
 .order-list { display: flex; gap: 4px; flex-wrap: wrap; }
 
+.order-row {
+  display: inline-flex;
+  gap: 3px;
+  align-items: center;
+  border: 2px solid var(--ink);
+  background: var(--coal-2);
+  padding: 2px;
+}
+.order-row .chip { border: none; }
+.order-row .btn.small { padding: 2px 7px; box-shadow: none; }
+
 /* ---------- tables ---------- */
 
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
@@ -269,7 +280,42 @@ textarea, input[type="text"] {
 .scarline { font-size: 11px; color: var(--rust); }
 .divider { height: 3px; background: var(--ink); margin: 12px 0; }
 
+/* ---------- mobile / touch / accessibility ---------- */
+
+/* keep iOS from zooming inputs on focus and give thumbs real tap targets */
 @media (max-width: 720px) {
   .battle-stage { grid-template-columns: 1fr; }
   .center-col { order: -1; }
+
+  html, body { font-size: 16px; }
+  #app { padding: 10px 10px 90px; }
+  .panel { padding: 11px; }
+  .btn { padding: 11px 14px; font-size: 13px; }
+  .btn.small { padding: 9px 11px; font-size: 12px; }
+  textarea, input[type="text"] { font-size: 16px; }
+  .doggrid { grid-template-columns: 1fr; }
+  .dogcard .portrait { max-height: 200px; object-fit: contain; }
+  .verdict-banner .display { font-size: 25px; }
+  .ticker { height: 150px; }
+  .scrap-counter { font-size: 16px; }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-scroll table { min-width: 420px; }
 }
+
+@media (hover: none) {
+  .btn:hover { transform: none; }
+}
+
+:focus-visible {
+  outline: 3px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  .hpbar .fill { transition: none; }
+}
+
+::selection { background: var(--gold); color: var(--ink); }
+
+.ticker { scrollbar-width: thin; scrollbar-color: var(--gold) var(--ink); }

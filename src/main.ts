@@ -27,7 +27,7 @@ import {
   type SeasonClose,
   type SeasonState,
 } from "./league/season";
-import { DOG_PRICE, TRICK_PRICE, poundOffers, teachTrick } from "./league/pound";
+import { DOG_PRICE, TRICK_PRICE, moveTrick, poundOffers, removeTrick, teachTrick } from "./league/pound";
 
 // ---------------------------------------------------------------- state
 
@@ -293,23 +293,37 @@ function viewTitle(): string {
     </div>`;
 }
 
+function slotLabel(i: number): string {
+  const slots = ["front", "mid", "back"];
+  return slots[i] ?? "bench";
+}
+
 function viewKennel(): string {
   if (!save) return viewTitle();
   const k = save.kennel;
   const dogCards = k.dogs
     .map((d, i) => {
       const eff = STRAINS[d.strain];
+      const slot = esc(slotLabel(i));
+      const orderLen = d.biteOrder.length;
       return `
       <div class="dogcard">
         ${dogSvg(d, 220)}
-        <div class="name display">${esc(d.name)} ${i < LINEUP_SIZE ? '<span class="tag lime">lineup</span>' : '<span class="tag">bench</span>'}</div>
+        <div class="name display">${esc(d.name)} <span class="tag lime">${slot}</span></div>
         <div class="mono-sm">${esc(eff.name)} — ${esc(eff.trait)}</div>
         <div class="stats">
           <span class="chip grit">GRIT ${eff.base.grit + d.grit + d.scars.reduce((s, x) => s + x.dGrit, 0)}</span>
           <span class="chip fang">FANG ${eff.base.fang + d.fang + d.scars.reduce((s, x) => s + x.dFang, 0)}</span>
           <span class="chip flea">FLEA ${eff.base.flea + d.flea + d.scars.reduce((s, x) => s + x.dFlea, 0)}</span>
         </div>
-        <div class="order-list">${d.biteOrder.map((t, ti) => `<span class="chip trick" title="${esc(TRICKS[t]?.text ?? t)}">${ti + 1}. ${esc(TRICKS[t]?.name ?? t)}</span>`).join("")}</div>
+        <div class="order-list">${d.biteOrder.map((t, ti) => `
+          <div class="order-row">
+            <span class="chip trick" title="${esc(TRICKS[t]?.text ?? t)}">${ti + 1}. ${esc(TRICKS[t]?.name ?? t)}</span>
+            <button class="btn small secondary" data-act="trick-up" data-i="${i}" data-j="${ti}" ${ti === 0 ? "disabled" : ""}>↑</button>
+            <button class="btn small secondary" data-act="trick-down" data-i="${i}" data-j="${ti}" ${ti === orderLen - 1 ? "disabled" : ""}>↓</button>
+            <button class="btn small danger" data-act="trick-remove" data-i="${i}" data-j="${ti}">×</button>
+          </div>
+        `).join("")}</div>
         ${d.scars.length ? `<div class="scarline">scars: ${d.scars.map((s) => esc(s.name)).join(", ")}</div>` : ""}
         <div class="btnrow">
           <button class="btn small secondary" data-act="dog-up" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
@@ -333,7 +347,7 @@ function viewKennel(): string {
     <div class="doggrid">${dogCards}</div>
     <div class="panel">
       <span class="tag violet">the pit says</span>
-      <p style="margin-top:8px">Lineup is the first ${LINEUP_SIZE} dogs — order is destiny. Move dogs with ↑↓.
+      <p style="margin-top:8px">Lineup is the first ${LINEUP_SIZE} dogs — front is slot 0, back is slot ${LINEUP_SIZE - 1}, beyond is bench. Move dogs with ↑↓, write each bite order with ↑↓×.
       The Pound sells fresh mongrels and trick lessons. The Bone Bracket starts when you say so.</p>
     </div>`;
 }
@@ -345,7 +359,13 @@ function viewPound(): string {
   const teachPanel =
     teachTarget !== null
       ? `<div class="panel bone">
-          <b>Teach a trick to ${esc(save.kennel.dogs[Number(teachTarget)]?.name ?? "?")}</b>
+          <b>Teach a trick — pick the dog</b>
+          <div class="btnrow">
+            ${save.kennel.dogs.map((dog, idx) => `
+              <button class="btn small ${Number(teachTarget) === idx ? "lime" : "secondary"}" data-act="teach-pick" data-i="${idx}">${esc(dog.name)} <span class="mono-sm">(${esc(slotLabel(idx))})</span></button>
+            `).join("")}
+          </div>
+          <p class="mono-sm">teaching ${esc(save.kennel.dogs[Number(teachTarget)]?.name ?? "?")} this turn.</p>
           <div class="btnrow">
             ${offer.tricks.map((t) => {
               const trick = TRICKS[t];
@@ -353,7 +373,7 @@ function viewPound(): string {
             }).join("")}
             <button class="btn small secondary" data-act="teach-cancel">cancel</button>
           </div>
-          <p class="mono-sm">lessons also available from any dog card later — the Pound stocks ${offer.tricks.map((t) => esc(TRICKS[t].name)).join(", ")} this week.</p>
+          <p class="mono-sm">the Pound stocks ${offer.tricks.map((t) => esc(TRICKS[t].name)).join(", ")} this week.</p>
         </div>`
       : "";
 
@@ -677,6 +697,47 @@ app.addEventListener("click", (e) => {
         } else {
           say(res.error ?? "the trick will not stick");
         }
+      }
+      break;
+    }
+    case "teach-pick":
+      if (i >= 0 && i < save!.kennel.dogs.length) teachTarget = String(i);
+      break;
+    case "trick-up": {
+      if (i < 0 || i >= save!.kennel.dogs.length) break;
+      const dog = save!.kennel.dogs[i];
+      const j = Number(target!.dataset.j ?? "-1");
+      const res = moveTrick(dog, j, "up");
+      if (res.ok) {
+        store();
+      } else {
+        say(res.error ?? "the trick will not move");
+      }
+      break;
+    }
+    case "trick-down": {
+      if (i < 0 || i >= save!.kennel.dogs.length) break;
+      const dog = save!.kennel.dogs[i];
+      const j = Number(target!.dataset.j ?? "-1");
+      const res = moveTrick(dog, j, "down");
+      if (res.ok) {
+        store();
+      } else {
+        say(res.error ?? "the trick will not move");
+      }
+      break;
+    }
+    case "trick-remove": {
+      if (i < 0 || i >= save!.kennel.dogs.length) break;
+      const dog = save!.kennel.dogs[i];
+      const j = Number(target!.dataset.j ?? "-1");
+      const trickId = dog.biteOrder[j];
+      const res = removeTrick(dog, j);
+      if (res.ok) {
+        store();
+        say(`${dog.name} forgot ${TRICKS[trickId]?.name ?? "a trick"} — slot opens.`);
+      } else {
+        say(res.error ?? "the trick will not budge");
       }
       break;
     }

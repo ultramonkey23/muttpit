@@ -63,3 +63,46 @@ export function teachTrick(dog: Dog, trickId: string): { ok: boolean; error?: st
   dog.biteOrder.push(trickId);
   return { ok: true };
 }
+
+/**
+ * Move a trick within a dog's bite order. "up" swaps with the previous entry,
+ * "down" swaps with the next. Refuses at the edges — the player can only
+ * reorder within the order they already own.
+ */
+export function moveTrick(
+  dog: Dog,
+  fromIndex: number,
+  direction: "up" | "down",
+): { ok: boolean; error?: string } {
+  const len = dog.biteOrder.length;
+  if (!Number.isInteger(fromIndex) || fromIndex < 0 || fromIndex >= len) {
+    return { ok: false, error: "no such trick" };
+  }
+  const target = direction === "up" ? fromIndex - 1 : fromIndex + 1;
+  if (target < 0 || target >= len) {
+    return {
+      ok: false,
+      error:
+        direction === "up"
+          ? "already at the top of the order"
+          : "already at the bottom of the order",
+    };
+  }
+  const arr = dog.biteOrder;
+  [arr[fromIndex], arr[target]] = [arr[target], arr[fromIndex]];
+  return { ok: true };
+}
+
+/**
+ * Remove a trick from a dog's bite order.
+ * Refuses to leave the dog with an empty order — validateKennel forbids it.
+ */
+export function removeTrick(dog: Dog, index: number): { ok: boolean; error?: string } {
+  const len = dog.biteOrder.length;
+  if (!Number.isInteger(index) || index < 0 || index >= len) {
+    return { ok: false, error: "no such trick" };
+  }
+  if (len <= 1) return { ok: false, error: "every dog needs at least one trick" };
+  dog.biteOrder.splice(index, 1);
+  return { ok: true };
+}

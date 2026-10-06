@@ -267,7 +267,7 @@ function render(): void {
     ${nav}
     ${msg ? `<div class="panel rust"><b>${esc(msg)}</b> <button class="btn small" data-act="dismiss">ok</button></div>` : ""}
     ${body}
-    <div class="quig">${esc(quigLine())} <span style="opacity:.6">v0.1 — what is not finished, the Pit will tell you.</span></div>
+    <div class="quig">${esc(quigLine())} <span style="opacity:.6">v0.1 · every build leaves a receipt.</span></div>
   `;
 }
 
@@ -287,10 +287,12 @@ function viewTitle(): string {
     </div>
     <div class="panel">
       <span class="tag violet">how it works</span>
-      <p style="margin-top:8px">1. Your kennel holds up to 4 dogs; the first ${LINEUP_SIZE} fight the Bout.
-      2. Each dog carries a bite order of tricks played cyclically.
-      3. Bouts resolve deterministically from a seed — the log hash is the receipt.
-      4. Play the 8-week Bone Bracket against ghost kennels, or mail codes to a human.</p>
+      <div class="how-grid">
+        <div><b>1 · BUILD</b><span>Keep up to 4 dogs. The first ${LINEUP_SIZE} fight; front takes most direct pressure.</span></div>
+        <div><b>2 · WRITE</b><span>Each dog follows a Bite Order. Reorder tricks to change what happens before the fight starts.</span></div>
+        <div><b>3 · FIGHT</b><span>Bouts auto-resolve from exact builds. Watch the sequence, then adapt instead of clicking attacks.</span></div>
+        <div><b>4 · CLIMB</b><span>Survive 8-week Bone Brackets, earn scars and scrap, or mail a kennel code to another player.</span></div>
+      </div>
     </div>`;
 }
 
@@ -311,18 +313,20 @@ function viewKennel(): string {
       <div class="dogcard">
         ${dogSvg(d, 220)}
         <div class="name display">${esc(d.name)} <span class="tag lime">${slot}</span></div>
-        <div class="mono-sm">${esc(eff.name)} — ${esc(eff.trait)}</div>
+        <div class="mono-sm trait-line">${esc(eff.name)} — ${esc(eff.trait)}</div>
         <div class="stats">
           <span class="chip grit">GRIT ${eff.base.grit + d.grit + d.scars.reduce((s, x) => s + x.dGrit, 0)}</span>
           <span class="chip fang">FANG ${eff.base.fang + d.fang + d.scars.reduce((s, x) => s + x.dFang, 0)}</span>
           <span class="chip flea">FLEA ${eff.base.flea + d.flea + d.scars.reduce((s, x) => s + x.dFlea, 0)}</span>
         </div>
-        <div class="order-list">${d.biteOrder.map((t, ti) => `
+        <div class="bite-label"><span>BITE ORDER</span><small>plays left → right, then loops ↻</small></div>
+        <div class="order-editor">${d.biteOrder.map((t, ti) => `
           <div class="order-row">
-            <span class="chip trick" title="${esc(TRICKS[t]?.text ?? t)}">${ti + 1}. ${esc(TRICKS[t]?.name ?? t)}</span>
-            <button class="btn small secondary" data-act="trick-up" data-i="${i}" data-j="${ti}" ${ti === 0 ? "disabled" : ""}>↑</button>
-            <button class="btn small secondary" data-act="trick-down" data-i="${i}" data-j="${ti}" ${ti === orderLen - 1 ? "disabled" : ""}>↓</button>
-            <button class="btn small danger" data-act="trick-remove" data-i="${i}" data-j="${ti}">×</button>
+            <span class="trick-chip"><span class="trick-step">${ti + 1}</span>${esc(TRICKS[t]?.name ?? t)}</span>
+            <button class="btn small secondary" data-act="trick-up" data-i="${i}" data-j="${ti}" ${ti === 0 ? "disabled" : ""} aria-label="Move ${esc(TRICKS[t]?.name ?? t)} earlier">↑</button>
+            <button class="btn small secondary" data-act="trick-down" data-i="${i}" data-j="${ti}" ${ti === orderLen - 1 ? "disabled" : ""} aria-label="Move ${esc(TRICKS[t]?.name ?? t)} later">↓</button>
+            <button class="btn small danger" data-act="trick-remove" data-i="${i}" data-j="${ti}" aria-label="Remove ${esc(TRICKS[t]?.name ?? t)}">×</button>
+            <span class="trick-help">${esc(TRICKS[t]?.text ?? t)}</span>
           </div>
         `).join("")}</div>
         ${d.scars.length ? `<div class="scarline">scars: ${d.scars.map((s) => esc(s.name)).join(", ")}</div>` : ""}
@@ -344,12 +348,16 @@ function viewKennel(): string {
         <span class="tag cyan">${esc(DIVISIONS[save.division])}</span>
         <span class="tag pink">season ${save.season}</span>
       </div>
+      <div class="stat-key" aria-label="Stat meanings">
+        <span><b>GRIT</b> life</span>
+        <span><b>FANG</b> damage</span>
+        <span><b>FLEA</b> speed</span>
+      </div>
     </div>
     <div class="doggrid">${dogCards}</div>
     <div class="panel">
       <span class="tag violet">the pit says</span>
-      <p style="margin-top:8px">Lineup is the first ${LINEUP_SIZE} dogs — front is slot 0, back is slot ${LINEUP_SIZE - 1}, beyond is bench. Move dogs with ↑↓, write each bite order with ↑↓×.
-      The Pound sells fresh mongrels and trick lessons. The Bone Bracket starts when you say so.</p>
+      <p style="margin-top:8px"><b>Front takes most direct pressure.</b> Mid and back follow; the fourth dog is your bench. Move dogs to change position and use ↑↓ to rewrite each Bite Order. Scout the next Bone Bracket opponent before committing the week.</p>
     </div>`;
 }
 
@@ -460,6 +468,30 @@ function viewLeague(): string {
     .join("");
 
   const nextOpp = st.week < SEASON_WEEKS ? st.ghosts[st.schedule[st.week]] : null;
+  const scout = nextOpp
+    ? `<div class="panel scout-panel">
+        <div class="scout-head">
+          <div><span class="tag pink">next in the pit</span><h3>${esc(nextOpp.kennel.name)}</h3><p>"${esc(nextOpp.kennel.motto)}"</p></div>
+          <span class="tag violet">${esc(nextOpp.personality)} pack</span>
+        </div>
+        <p class="scout-callout">Scout the exact build, then tune your lineup and Bite Orders before committing the week.</p>
+        <div class="scout-grid">
+          ${nextOpp.kennel.dogs.slice(0, LINEUP_SIZE).map((d, i) => {
+            const strain = STRAINS[d.strain];
+            return `<div class="scout-dog">
+              ${dogSvg(d, 88)}
+              <div class="scout-copy">
+                <b>${esc(slotLabel(i))} · ${esc(d.name)}</b>
+                <div class="trait-line">${esc(strain.name)} — ${esc(strain.trait)}</div>
+                <div class="stats"><span class="chip grit">G ${strain.base.grit + d.grit}</span><span class="chip fang">F ${strain.base.fang + d.fang}</span><span class="chip flea">S ${strain.base.flea + d.flea}</span></div>
+                <div class="scout-order">${d.biteOrder.map((t, ti) => `<span><b>${ti + 1}</b> ${esc(TRICKS[t]?.name ?? t)}</span>`).join("")}</div>
+              </div>
+            </div>`;
+          }).join("")}
+        </div>
+        <div class="btnrow"><button class="btn secondary" data-act="goto" data-screen="kennel">Tune kennel</button><button class="btn lime" data-act="season-play">Fight week ${st.week + 1}</button></div>
+      </div>`
+    : "";
   const closePanel = st.done
     ? `<div class="verdict-banner ${save.lastClose && save.lastClose.relegated ? "lost" : ""}">
         <div class="display">${save.lastClose ? esc(save.lastClose.summary) : "Season complete"}</div>
@@ -473,8 +505,9 @@ function viewLeague(): string {
     <div class="panel gold">
       <h2>Bone Bracket — ${esc(DIVISIONS[st.division])} · Season ${st.season}</h2>
       <p>Week ${Math.min(st.week + 1, SEASON_WEEKS)} of ${SEASON_WEEKS} · your scrap: <b>${st.scrap}</b></p>
-      ${nextOpp ? `<div class="btnrow"><button class="btn lime" data-act="season-play">Play Week ${st.week + 1} vs ${esc(nextOpp.kennel.name)}</button></div>` : ""}
+      ${nextOpp ? `<p>Next: <b>${esc(nextOpp.kennel.name)}</b> — scout the pack below before you lock the week.</p>` : ""}
     </div>
+    ${scout}
     ${closePanel}
     <div class="panel">
       <h3>Standings</h3>

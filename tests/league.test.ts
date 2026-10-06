@@ -138,3 +138,15 @@ describe("the pound", () => {
     expect(d.biteOrder.length).toBe(4);
   });
 });
+
+describe("standings receipt truth", () => {
+  it("counts every ghost bout in the P column (played = W+D+L for all rows)", () => {
+    let st = startSeason(playerKennel, 777, 0, 1);
+    for (let w = 0; w < SEASON_WEEKS; w++) st = playWeek(st).state;
+    const table = standings(st);
+    for (const row of table) {
+      expect(row.played).toBe(row.wins + row.draws + row.losses);
+    }
+    expect(table.find((r) => r.isPlayer)!.played).toBe(SEASON_WEEKS);
+  });
+});

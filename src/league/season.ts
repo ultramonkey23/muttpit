@@ -249,6 +249,8 @@ export function standings(state: SeasonState): StandingRow[] {
   for (const r of state.ghostResults) {
     const a = ensure(r.a, state.ghosts.find((g) => g.id === r.a)?.kennel.name ?? r.a, false);
     const b = ensure(r.b, state.ghosts.find((g) => g.id === r.b)?.kennel.name ?? r.b, false);
+    a.played += 1;
+    b.played += 1;
     if (r.winner === "draw") {
       a.draws += 1;
       b.draws += 1;

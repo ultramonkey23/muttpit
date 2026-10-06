@@ -34,14 +34,14 @@ export const STRAINS: Record<StrainId, StrainDef> = {
     id: "bonehound",
     name: "Bonehound",
     blurb: "Already died once. Filed a complaint.",
-    base: { grit: 12, fang: 6, flea: 3 },
+    base: { grit: 11, fang: 5, flea: 4 },
     trait: "Undead — starts each bout with SHIELD 3.",
   },
   grem: {
     id: "grem",
     name: "Grem",
     blurb: "Small, loud, legally a hazard.",
-    base: { grit: 9, fang: 5, flea: 4 },
+    base: { grit: 10, fang: 5, flea: 4 },
     trait: "Volatile — +2 FANG while below half GRIT.",
   },
   cur: {
@@ -62,7 +62,7 @@ export const STRAINS: Record<StrainId, StrainDef> = {
     id: "pupp",
     name: "Pupp",
     blurb: "Fast enough to regret everything later.",
-    base: { grit: 9, fang: 5, flea: 7 },
+    base: { grit: 10, fang: 5, flea: 7 },
     trait: "Quick — acts first on any tick tie.",
   },
 };

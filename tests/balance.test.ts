@@ -32,6 +32,22 @@ describe("balance harness", () => {
     }
   });
 
+
+  it("keeps every personality archetype win rate within 0.25-0.75 vs the field", () => {
+    const report = runBalanceReport();
+    const personalities = report.archetypes.filter((a) => a.kind === "personality");
+    expect(personalities.length).toBeGreaterThan(0);
+    for (const outcome of personalities) {
+      expect(
+        outcome.winRate,
+        `${outcome.id} winRate ${outcome.winRate.toFixed(3)}`,
+      ).toBeGreaterThanOrEqual(0.25);
+      expect(
+        outcome.winRate,
+        `${outcome.id} winRate ${outcome.winRate.toFixed(3)}`,
+      ).toBeLessThanOrEqual(0.75);
+    }
+  });
   it("keeps every strain win rate within 0.25-0.75 vs the isolated strain field", () => {
     const report = runBalanceReport();
     const strains = report.archetypes.filter((a) => a.kind === "strain" && a.strainField);

@@ -55,7 +55,8 @@ Street-courtroom comic brutalism. The Pit speaks like a boxing promoter with a f
 
 ## Field truth: balance & progression (measured, not vibed)
 
-- The Pit measures its own field: `runBalanceReport` (src/league/balance.ts) round-robins 6 strain + 5 personality archetypes over fixed seeds. Tests gate **both** fields to win rates in 0.25–0.75 (vs the whole field, and strains vs the isolated strain field).
+- The Pit measures its own field: `runBalanceReport` (src/league/balance.ts) round-robins 6 strain + 5 personality archetypes over fixed seeds. Tests gate **all three** lanes to win rates in 0.25–0.75: strains vs the whole field, strains vs the isolated strain field, and personalities vs the whole field. Field truth at the D2a retune: strains 0.367–0.700 vs field / 0.267–0.733 isolated; personalities 0.383–0.467. Personality archetypes share one fixed chassis trio (mongrel/bonehound/cur) so ALLOC + bite-order prefs are the personality variable, not mono-chassis base stacking.
+- Balance data, not math: the retune adjusts three strain bases — grem 9→10 GRIT, pupp 9→10 GRIT, bonehound 12/6/3→11/5/4 — and strain bench 3's bite order swaps cower→maul so every strain line carries real damage. The battle formulas never changed.
 - Trait truth: grem **VOLATILE** (+2 FANG when bloodied) fires at 75% GRIT — the old 50% threshold almost never triggered because dogs die first. `tests/volatile.test.ts` pins a measured trigger-rate floor.
 - Progression heat: the Pound's offers roll richer as a career deepens — offer budgets gain `min(6, (season-1) + division)` stat points. Season 1 Sewer drafts are scrappy; Crown Pit season 4 drafts are monsters.
 - Ghost pressure: ghost kennel skill scales with season + division, so the ladder actually climbs. Promotion is a harder Pit, not just a fancier name.

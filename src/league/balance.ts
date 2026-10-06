@@ -42,10 +42,13 @@ const STRAIN_TEMPLATE = { grit: 3, fang: 3, flea: 3 };
 const STRAIN_ORDERS: string[][] = [
   ["snap", "maul", "backbite", "flurry"],
   ["fleabite", "tickharvest", "bonecrack", "spite"],
-  ["howl", "whiffle", "cower", "boneshield"],
+  ["howl", "whiffle", "maul", "boneshield"],
 ];
 
 const STRAIN_POOL: StrainId[] = ["mongrel", "bonehound", "grem", "cur", "brute", "pupp"];
+// Identical chassis for every personality bench isolates ALLOC + PREFS as the
+// personality variable (mono-chassis stacking skewed the field).
+const PERSONALITY_CHASSIS: StrainId[] = ["mongrel", "bonehound", "cur"];
 
 const BASE_SEEDS = [101, 211, 307, 401, 503, 607];
 const MIN_BOUTS = 120;
@@ -70,7 +73,6 @@ function isDamaging(trickId: string): boolean {
 function personalityDogs(personality: Personality): Dog[] {
   const alloc = ALLOC[personality];
   const prefs = PREFS[personality];
-  const pi = PERSONALITIES.indexOf(personality);
   const damaging = prefs.filter(isDamaging);
   return [0, 1, 2].map((i) => {
     const biteOrder = [0, 1, 2, 3].map((k) => prefs[(i * 4 + k) % prefs.length]);
@@ -82,7 +84,7 @@ function personalityDogs(personality: Personality): Dog[] {
     return {
       id: `bal-${personality}-${i}`,
       name: `${personality} bench ${i + 1}`,
-      strain: STRAIN_POOL[(i * 2 + pi) % STRAIN_POOL.length],
+      strain: PERSONALITY_CHASSIS[i],
       grit: alloc.grit,
       fang: alloc.fang,
       flea: alloc.flea,

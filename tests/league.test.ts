@@ -150,3 +150,23 @@ describe("standings receipt truth", () => {
     expect(table.find((r) => r.isPlayer)!.played).toBe(SEASON_WEEKS);
   });
 });
+
+describe("ghost pressure ladder", () => {
+  it("raises ghost skill with season/division pressure without breaking determinism", () => {
+    const calm = makeGhostLeague(4242, GHOST_COUNT, 0);
+    const heat = makeGhostLeague(4242, GHOST_COUNT, 3);
+    for (let i = 0; i < GHOST_COUNT; i++) {
+      expect(heat[i].skill).toBeGreaterThanOrEqual(calm[i].skill);
+      expect(heat[i].skill).toBeLessThanOrEqual(0.95);
+    }
+    expect(heat.some((g, i) => g.skill > calm[i].skill)).toBe(true);
+  });
+
+  it("startSeason feeds season+division into ghost pressure", () => {
+    const a = startSeason(playerKennel, 90210, 0, 1);
+    const b = startSeason(playerKennel, 90210, 2, 3);
+    const aSkill = a.ghosts.reduce((s, g) => s + g.skill, 0) / a.ghosts.length;
+    const bSkill = b.ghosts.reduce((s, g) => s + g.skill, 0) / b.ghosts.length;
+    expect(bSkill).toBeGreaterThan(aSkill);
+  });
+});

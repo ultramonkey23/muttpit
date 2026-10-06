@@ -22,19 +22,19 @@ export interface GhostKennel {
 export const PERSONALITIES: Personality[] = ["aggressive", "defensive", "trickster", "pack", "feral"];
 
 export const PREFS: Record<Personality, string[]> = {
-  aggressive: ["maul", "snap", "flurry", "verdict", "sic", "packpounce", "goForTheEyes"],
-  defensive: ["cower", "boneshield", "rally", "countersnarl", "lickwounds", "secondwind", "snap"],
+  aggressive: ["maul", "snap", "flurry", "sic", "packpounce", "fleabite", "tickharvest"],
+  defensive: ["bonecrack", "cower", "verdict", "countersnarl", "snap", "rally", "secondwind"],
   trickster: ["mudtoss", "goad", "goForTheEyes", "fleabite", "tickharvest", "shriek", "playdead"],
-  pack: ["howl", "packpounce", "rally", "lickwounds", "snap", "shriek"],
-  feral: ["spite", "marrow", "backbite", "fleabite", "sic", "maul"],
+  pack: ["whiffle", "howl", "packpounce", "rally", "snap", "shriek", "lickwounds"],
+  feral: ["spite", "marrow", "backbite", "fleabite", "maul", "cower"],
 };
 
 export const ALLOC: Record<Personality, { grit: number; fang: number; flea: number }> = {
-  aggressive: { grit: 1, fang: 6, flea: 3 },
-  defensive: { grit: 6, fang: 2, flea: 2 },
-  trickster: { grit: 2, fang: 3, flea: 5 },
-  pack: { grit: 3, fang: 4, flea: 3 },
-  feral: { grit: 5, fang: 4, flea: 1 },
+  aggressive: { grit: 0, fang: 1, flea: 1 },
+  defensive: { grit: 5, fang: 3, flea: 2 },
+  trickster: { grit: 3, fang: 4, flea: 5 },
+  pack: { grit: 3, fang: 4, flea: 4 },
+  feral: { grit: 1, fang: 1, flea: 2 },
 };
 
 const STRAIN_POOL: StrainId[] = ["mongrel", "bonehound", "grem", "cur", "brute", "pupp"];
@@ -82,10 +82,12 @@ function makeGhostDog(rng: () => number, personality: Personality, skill: number
   };
 }
 
-export function makeGhost(seed: number, index: number): GhostKennel {
+/** pressure = season ladder (0-based) + division index; later weeks and higher
+ * pits field sharper ghosts, player-like, without touching engine math. */
+export function makeGhost(seed: number, index: number, pressure = 0): GhostKennel {
   const rng = mulberry32((seed ^ (index * 2654435761)) >>> 0);
   const personality = PERSONALITIES[rollInt(rng, PERSONALITIES.length)];
-  const skill = 0.25 + rng() * 0.6;
+  const skill = Math.min(0.95, 0.25 + rng() * 0.6 + Math.max(0, pressure) * 0.05);
   const dogCount = 3 + rollInt(rng, 2);
   const dogs: Dog[] = [];
   for (let i = 0; i < dogCount; i++) dogs.push(makeGhostDog(rng, personality, skill, i));
@@ -99,8 +101,8 @@ export function makeGhost(seed: number, index: number): GhostKennel {
   };
 }
 
-export function makeGhostLeague(seed: number, count: number): GhostKennel[] {
+export function makeGhostLeague(seed: number, count: number, pressure = 0): GhostKennel[] {
   const ghosts: GhostKennel[] = [];
-  for (let i = 0; i < count; i++) ghosts.push(makeGhost(seed, i));
+  for (let i = 0; i < count; i++) ghosts.push(makeGhost(seed, i, pressure));
   return ghosts;
 }

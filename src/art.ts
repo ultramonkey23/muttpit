@@ -35,6 +35,33 @@ export function dogSvg(dog: Dog, size = 120): string {
   const eyeType = Math.abs(seed >> 9) % 3;
   const snout = 18 + (Math.abs(seed >> 12) % 10);
 
+  const frame = {
+    mongrel: { bodyRx: 38, bodyRy: 22, bodyCy: 92, headRx: 30, headRy: 30, headCy: 58 },
+    bonehound: { bodyRx: 34, bodyRy: 20, bodyCy: 93, headRx: 25, headRy: 31, headCy: 57 },
+    grem: { bodyRx: 32, bodyRy: 18, bodyCy: 94, headRx: 28, headRy: 24, headCy: 62 },
+    cur: { bodyRx: 34, bodyRy: 19, bodyCy: 93, headRx: 25, headRy: 29, headCy: 58 },
+    brute: { bodyRx: 44, bodyRy: 27, bodyCy: 91, headRx: 35, headRy: 32, headCy: 58 },
+    pupp: { bodyRx: 29, bodyRy: 17, bodyCy: 95, headRx: 24, headRy: 25, headCy: 61 },
+  }[dog.strain];
+
+  const strainMarks =
+    dog.strain === "bonehound"
+      ? `<path d="M47 87 v18 M58 84 v23 M69 84 v23 M80 87 v18" stroke="#e8dcc4" stroke-width="3" opacity=".8"/>
+         <path d="M49 42 q16 -14 32 0" fill="none" stroke="#e8dcc4" stroke-width="4" opacity=".65"/>`
+      : dog.strain === "grem"
+        ? `<path d="M48 43 l8 7 -6 7 10 7 -6 8" fill="none" stroke="#f5b83d" stroke-width="3" stroke-linecap="square"/>
+           <path d="M86 38 l8 10 -9 -2 6 10" fill="none" stroke="#e5484d" stroke-width="3"/>`
+        : dog.strain === "cur"
+          ? `<path d="M37 45 l18 -8 M81 41 l12 8" stroke="#120c08" stroke-width="4"/>
+             <path d="M82 76 l12 7" stroke="#e5484d" stroke-width="3"/>`
+          : dog.strain === "brute"
+            ? `<path d="M31 52 q34 -18 68 0" fill="none" stroke="#120c08" stroke-width="7"/>
+               <path d="M34 91 h62" stroke="#120c08" stroke-width="5" opacity=".55"/>`
+            : dog.strain === "pupp"
+              ? `<path d="M54 40 q11 -8 22 0" fill="none" stroke="#e8dcc4" stroke-width="4"/>
+                 <circle cx="91" cy="91" r="4" fill="#f5b83d" stroke="#120c08" stroke-width="2"/>`
+              : `<path d="M38 84 q12 8 24 0" fill="none" stroke="#e8dcc4" stroke-width="3" opacity=".65"/>`;
+
   const ears =
     earType === 0
       ? `<path d="M30 42 L38 12 L52 38 Z" fill="${coat}" stroke="#120c08" stroke-width="3"/>
@@ -70,13 +97,14 @@ export function dogSvg(dog: Dog, size = 120): string {
     )
     .join("");
 
-  return `<svg class="portrait" viewBox="0 0 130 120" width="${size}" height="${(size * 120) / 130}" xmlns="http://www.w3.org/2000/svg">
+  return `<svg class="portrait strain-${dog.strain}" role="img" aria-label="${STRAINS[dog.strain].name} portrait of ${dog.name}" viewBox="0 0 130 120" width="${size}" height="${(size * 120) / 130}" xmlns="http://www.w3.org/2000/svg">
   <rect width="130" height="120" fill="#1c1410"/>
   ${tail}
-  <ellipse cx="65" cy="92" rx="38" ry="22" fill="${coat}" stroke="#120c08" stroke-width="3"/>
+  <ellipse cx="65" cy="${frame.bodyCy}" rx="${frame.bodyRx}" ry="${frame.bodyRy}" fill="${coat}" stroke="#120c08" stroke-width="3"/>
   ${ears}
-  <circle cx="65" cy="58" r="30" fill="${coat}" stroke="#120c08" stroke-width="3"/>
+  <ellipse cx="65" cy="${frame.headCy}" rx="${frame.headRx}" ry="${frame.headRy}" fill="${coat}" stroke="#120c08" stroke-width="3"/>
   ${eyes}
+  ${strainMarks}
   <ellipse cx="65" cy="74" rx="${snout / 2}" ry="10" fill="#e8dcc4" stroke="#120c08" stroke-width="3"/>
   <ellipse cx="65" cy="68" rx="6" ry="4.5" fill="#120c08"/>
   <path d="M58 80 Q65 86 72 80" fill="none" stroke="#120c08" stroke-width="2.5" stroke-linecap="round"/>

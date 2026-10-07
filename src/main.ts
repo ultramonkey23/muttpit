@@ -493,8 +493,9 @@ function viewPound(): string {
           </div>
           <div class="order-list">${d.biteOrder.map((t) => `<span class="chip trick">${esc(TRICKS[t].name)}</span>`).join("")}</div>
           <div class="btnrow">
-            <button class="btn small lime" data-act="buy-dog" data-i="${i}" ${s.kennel.dogs.length >= 4 ? "disabled" : ""}>buy — ${DOG_PRICE}</button>
+            <button class="btn small lime" data-act="buy-dog" data-i="${i}" ${s.kennel.dogs.length >= 4 || s.scrap < DOG_PRICE ? "disabled" : ""}>buy — ${DOG_PRICE}</button>
           </div>
+          ${s.kennel.dogs.length >= 4 ? `<div class="full-hint">Kennel full (4/4). Release a dog in the Kennel to make room.</div>` : s.scrap < DOG_PRICE ? `<div class="full-hint">Not enough scrap.</div>` : ""}
         </div>`,
         )
         .join("")}

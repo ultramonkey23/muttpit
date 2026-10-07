@@ -33,6 +33,7 @@ import {
   type SeasonClose,
   type SeasonState,
 } from "./league/season";
+import { scarsBackToKennel, withCurrentKennel } from "./league/seasonSync";
 import { DOG_PRICE, TRICK_PRICE, moveTrick, poundOffers, removeTrick, teachTrick } from "./league/pound";
 
 // ---------------------------------------------------------------- state
@@ -1010,11 +1011,14 @@ app.addEventListener("click", (e) => {
       break;
     }
     case "season-play": {
-      const st = save!.seasonState;
-      if (!st || st.done) break;
+      const prev = save!.seasonState;
+      if (!prev || prev.done) break;
+      // fight the kennel as it stands now: lineup, bite orders, purchases, scrap
+      const st = withCurrentKennel(prev, save!.kennel, save!.scrap);
       const outcome = playWeek(st);
       save!.seasonState = outcome.state;
       save!.scrap = outcome.state.scrap;
+      scarsBackToKennel(save!.kennel, outcome.state);
       store();
       const opp = outcome.state.playerResults[outcome.state.playerResults.length - 1];
       startBout(
@@ -1031,7 +1035,7 @@ app.addEventListener("click", (e) => {
     case "season-close": {
       const st = save!.seasonState;
       if (!st || !st.done) break;
-      const close = closeSeason(st);
+      const close = closeSeason(withCurrentKennel(st, save!.kennel, save!.scrap));
       save!.lastClose = close;
       save!.scrap = close.state.scrap;
       save!.division = close.state.division;

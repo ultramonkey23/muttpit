@@ -210,40 +210,58 @@ function normalizeName(name: string): string {
   return name.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-const NAME_EXTRA = ["II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
-
-/** Pick a kennel name for ghost `index` that is distinct from the player's
+/**
+ * Pick a kennel name for ghost `index` that is distinct from the player's
  * kennel name and from every other ghost already placed this season. Comparison
  * is case- and whitespace-insensitive. Deterministic from seed + index + player
- * name, so the same season (and rename) always breeds the same rivals. */
+ * name, so the same season (and rename) always breeds the same rivals.
+ *
+ * A rival whose rotated base name would clash with the player's kennel name
+ * (equal to it, or starting with it) takes a different base name entirely —
+ * we rotate to a wholly different KENNEL_NAMES entry rather than ever appending
+ * a suffix to the player's name. A name like Bucket Kennels II still reads as
+ * the player's kennel in the standings and Pit notes, so it is never used.
+ */
 function uniqueKennelName(seed: number, index: number, playerName: string | undefined, used: Set<string>): string {
   const norm = (s: string) => normalizeName(s);
-  const taken = (s: string) => {
+  const playerNorm = playerName === undefined ? null : norm(playerName);
+  // A rival name clashes with the player when it equals the player's name OR
+  // starts with it (case/whitespace-insensitive). We never fall back to a
+  // player name + suffix — a wholly different base name is always chosen.
+  const playerClash = (s: string): boolean => {
+    if (playerNorm === null) return false;
     const n = norm(s);
-    if (playerName !== undefined && n === norm(playerName)) return true;
-    return used.has(n);
+    if (n === playerNorm) return true;
+    if (n.startsWith(playerNorm) && /^\s/.test(n.slice(playerNorm.length))) return true;
+    return false;
   };
-  const base = KENNEL_NAMES[((seed >>> 0) + index) % KENNEL_NAMES.length];
-  if (!taken(base)) {
-    used.add(norm(base));
-    return base;
-  }
-  for (const extra of NAME_EXTRA) {
-    const cand = `${base} ${extra}`;
-    if (!taken(cand)) {
-      used.add(norm(cand));
-      return cand;
+  const taken = (s: string) => playerClash(s) || used.has(norm(s));
+
+  // Base names that never collide with the player (neither equal nor a prefix).
+  // We rotate through these wholly-different bases; a numeric disambiguator is
+  // only used when two rivals land on the same base, never on the player name.
+  const bases = KENNEL_NAMES.filter((b) => !playerClash(b));
+  const count = Math.max(1, bases.length);
+  const start = ((seed >>> 0) + index) % count;
+  for (let off = 0; off < count; off++) {
+    const base = bases[(start + off) % count];
+    let cand = base;
+    let n = 2;
+    while (taken(cand)) {
+      cand = `${base} #${n}`;
+      n += 1;
     }
+    used.add(norm(cand));
+    return cand;
   }
+  // Defensive fallback (unreachable: at least one KENNEL_NAMES entry can never
+  // be a prefix of every other entry). Keeps determinism and distinctness.
+  const fallback = KENNEL_NAMES[0];
   let n = index + 1;
-  while (true) {
-    const cand = `${base} #${n}`;
-    if (!taken(cand)) {
-      used.add(norm(cand));
-      return cand;
-    }
-    n += 1;
-  }
+  while (taken(`${fallback} #${n}`)) n += 1;
+  const cand = `${fallback} #${n}`;
+  used.add(norm(cand));
+  return cand;
 }
 
 export function makeGhostLeague(

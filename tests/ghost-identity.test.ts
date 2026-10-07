@@ -87,4 +87,41 @@ describe("ghost kennel identity", () => {
       }
     }
   });
+
+  it("never equals or starts with the player's name across many seeds and renames", () => {
+    const seeds = [0, 1, 7, 42, 999, 2026, 0x7fffffff, 0xffffffff, 3, 88, 4242, 90210, 31337];
+    const pressures = [0, 1, 2, 4, 8, 12];
+    const renames = [
+      "Bucket Kennels",
+      "BUCKET KENNELS",
+      "bucket\tkennels",
+      "  bucket   kennels ",
+      "My Rowdy Pit",
+      "  my   ROWDY   pit ",
+      "The",
+      "the rust",
+      "Bucket",
+    ];
+
+    for (const seed of seeds) {
+      for (const pressure of pressures) {
+        for (const playerName of renames) {
+          const ghosts = makeGhostLeague(seed, GHOST_COUNT, pressure, playerName);
+          const names = ghosts.map((g) => g.kennel.name);
+          expect(new Set(names).size).toBe(ghosts.length);
+          for (const name of names) {
+            const n = norm(name);
+            const p = norm(playerName);
+            expect(n).not.toBe(p);
+            expect(n.startsWith(p)).toBe(false);
+          }
+          for (const ghost of ghosts) {
+            expect(ghost.name).toBe(ghost.kennel.name);
+          }
+          const again = makeGhostLeague(seed, GHOST_COUNT, pressure, playerName);
+          expect(again).toEqual(ghosts);
+        }
+      }
+    }
+  });
 });

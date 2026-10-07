@@ -955,3 +955,13 @@ textarea, input[type="text"] {
   .title-hero .title-sub { position: static; margin: 0 0 12px; letter-spacing: 0.12em; padding: 0 8px; }
 }
 .full-hint { font-size: 11px; color: #665646; margin-top: 4px; }
+
+/* scouting: what the opponent threatens, as facts */
+.threat-read { list-style: none; display: grid; gap: 4px; margin: 8px 0 10px; }
+.threat-read li { display: flex; gap: 8px; align-items: baseline; font-size: 13px; line-height: 1.35; }
+.threat-read .tk { flex: 0 0 64px; text-align: center; font: 700 9px/1.6 ui-monospace, monospace; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink); background: var(--bone-dim); border: 1.5px solid var(--ink); }
+.threat-speed .tk { background: var(--cyan); }
+.threat-power .tk { background: var(--rust); color: var(--bone); }
+.threat-barrage .tk { background: var(--gold); }
+.threat-bleed .tk { background: var(--red); color: var(--bone); }
+.threat-shield .tk { background: var(--bone); }

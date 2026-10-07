@@ -10,6 +10,7 @@ import heroUrl from "./assets/hero.webp?url";
 import pitUrl from "./assets/pit.webp?url";
 import { eventDelay, eventFeedback } from "./playback";
 import { summarizeBout, type BoutReport, type DogReport } from "./boutReport";
+import { threatRead } from "./league/threatRead";
 import { STRAINS, TRICKS, LINEUP_SIZE, type StrainId } from "./engine/content";
 import { effectiveStats, type BattleResult, type Dog, type Scar } from "./engine/battle";
 import { fnv1a } from "./engine/rng";
@@ -557,6 +558,12 @@ function viewLeague(): string {
           <span class="tag violet">${esc(nextOpp.personality)} pack</span>
         </div>
         <p class="scout-callout">Scout the exact build, then tune your lineup and Bite Orders before committing the week.</p>
+        ${(() => {
+          const threats = threatRead(nextOpp.kennel.dogs);
+          return threats.length
+            ? `<ul class="threat-read">${threats.map((t) => `<li class="threat-${t.kind}"><span class="tk">${esc(t.kind)}</span>${esc(t.text)}</li>`).join("")}</ul>`
+            : "";
+        })()}
         <div class="scout-grid">
           ${nextOpp.kennel.dogs.slice(0, LINEUP_SIZE).map((d, i) => {
             const strain = STRAINS[d.strain];

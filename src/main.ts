@@ -34,7 +34,7 @@ import {
   type SeasonState,
 } from "./league/season";
 import { scarsBackToKennel, withCurrentKennel } from "./league/seasonSync";
-import { DOG_PRICE, TRICK_PRICE, moveTrick, poundOffers, removeTrick, teachTrick } from "./league/pound";
+import { DOG_PRICE, TRICK_PRICE, moveTrick, poundOffers, rattlePrice, removeTrick, teachTrick } from "./league/pound";
 
 // ---------------------------------------------------------------- state
 
@@ -58,6 +58,8 @@ interface Save {
   lastClose: SeasonClose | null;
   mail: MailEntry[];
   poundSeed: number;
+  /** rattles bought this Bone Bracket week; resets when a week is fought (absent in old saves = 0) */
+  rattleCount?: number;
   boutCounter: number;
   /** per-dog career record, keyed by dog id (save-local; never mailed) */
   records?: Record<string, DogRecord>;
@@ -85,7 +87,6 @@ interface Bout {
   report: BoutReport;
 }
 
-const ROTATE_PRICE = 5;
 const SAVE_KEY = "muttpit.save.v1";
 const app = document.getElementById("app")!;
 
@@ -181,6 +182,7 @@ function newCareer(): void {
     lastClose: null,
     mail: [],
     poundSeed: 1,
+    rattleCount: 0,
     boutCounter: 0,
   };
   store();
@@ -556,7 +558,7 @@ function viewPound(): string {
       ${offer.tricks.map((t) => `<div><b>${esc(TRICKS[t].name)}</b> — ${esc(TRICKS[t].text)}</div>`).join("")}
       <div class="btnrow">
         <button class="btn violet" data-act="teach-start">teach one</button>
-        <button class="btn secondary" data-act="pound-rotate" ${s.scrap < ROTATE_PRICE ? "disabled" : ""}>Rattle the cage — ${ROTATE_PRICE} scrap</button>
+        <button class="btn secondary" data-act="pound-rotate" ${s.scrap < rattlePrice(s.rattleCount ?? 0) ? "disabled" : ""}>Rattle the cage — ${rattlePrice(s.rattleCount ?? 0)} scrap</button>
       </div>
     </div>`;
 }
@@ -988,16 +990,19 @@ app.addEventListener("click", (e) => {
       }
       break;
     }
-    case "pound-rotate":
-      if (save!.scrap < ROTATE_PRICE) {
+    case "pound-rotate": {
+      const price = rattlePrice(save!.rattleCount ?? 0);
+      if (save!.scrap < price) {
         say("Not enough scrap to rattle the cage.");
       } else {
-        save!.scrap -= ROTATE_PRICE;
+        save!.scrap -= price;
+        save!.rattleCount = (save!.rattleCount ?? 0) + 1;
         save!.poundSeed += 1;
         store();
-        say("The cage rattles — new dogs and tricks.");
+        say(`The cage rattles — new dogs and tricks. Next rattle: ${rattlePrice(save!.rattleCount)} scrap.`);
       }
       break;
+    }
     case "teach-start":
       teachTarget = "0";
       break;
@@ -1079,6 +1084,7 @@ app.addEventListener("click", (e) => {
       const outcome = playWeek(st);
       save!.seasonState = outcome.state;
       save!.scrap = outcome.state.scrap;
+      save!.rattleCount = 0;
       scarsBackToKennel(save!.kennel, outcome.state);
       store();
       const opp = outcome.state.playerResults[outcome.state.playerResults.length - 1];

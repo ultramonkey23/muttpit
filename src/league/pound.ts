@@ -9,6 +9,18 @@ import { mulberry32, rollInt } from "../engine/rng";
 
 export const DOG_PRICE = 40;
 export const TRICK_PRICE = 25;
+export const RATTLE_BASE_PRICE = 5;
+
+/**
+ * Price of the next "Rattle the cage" given how many rattles were already
+ * bought in the current Bone Bracket week. Doubles each time:
+ * 0 -> 5, 1 -> 10, 2 -> 20, 3 -> 40, 4 -> 80, 5 -> 160 ...
+ * The caller resets the count to 0 when a week is played. Pure.
+ */
+export function rattlePrice(rattlesThisWeek: number): number {
+  const n = Number.isFinite(rattlesThisWeek) ? Math.max(0, Math.floor(rattlesThisWeek)) : 0;
+  return RATTLE_BASE_PRICE * 2 ** n;
+}
 
 export interface PoundOffer {
   seed: number;

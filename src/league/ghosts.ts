@@ -91,13 +91,16 @@ export function makeGhost(seed: number, index: number, pressure = 0): GhostKenne
   const dogCount = 3 + rollInt(rng, 2);
   const dogs: Dog[] = [];
   for (let i = 0; i < dogCount; i++) dogs.push(makeGhostDog(rng, personality, skill, i));
+  const baseName = KENNEL_NAMES[((seed >>> 0) + index) % KENNEL_NAMES.length];
+  const kennelName = index < KENNEL_NAMES.length ? baseName : `${baseName} #${index + 1}`;
+  const motto = pick(rng, MOTTOS);
   return {
     id: `ghost-${index}-${seed.toString(16)}`,
-    name: pick(rng, KENNEL_NAMES),
-    motto: pick(rng, MOTTOS),
+    name: kennelName,
+    motto,
     personality,
     skill,
-    kennel: { v: 1, name: pick(rng, KENNEL_NAMES), motto: pick(rng, MOTTOS), dogs },
+    kennel: { v: 1, name: kennelName, motto, dogs },
   };
 }
 

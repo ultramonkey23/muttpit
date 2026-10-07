@@ -929,3 +929,22 @@ textarea, input[type="text"] {
 .scout-dog { grid-template-columns: 124px minmax(0, 1fr); }
 .scout-dog .dog-art { aspect-ratio: 1 / 1; }
 @media (max-width: 520px) { .scout-dog { grid-template-columns: 104px minmax(0, 1fr); } }
+
+/* only the dog lunges; nameplates stay put so neighbours never overlap */
+.pf.acting.team0, .pf.acting.team1 { transform: none; }
+.pf .dog-sprite { transition: transform 140ms ease-out; }
+.pf.acting.team0 .dog-sprite { transform: translateX(22px) scale(1.07); }
+.pf.acting.team1 .dog-sprite { transform: translateX(-22px) scale(1.07); }
+/* damage reads on any burst colour */
+.pf .dmg-num { color: var(--bone); -webkit-text-stroke: 1.5px var(--ink); text-shadow: 3px 3px 0 var(--ink); }
+.pf .impact.big + .dmg-num { color: var(--gold); }
+@media (max-width: 720px) {
+  .pf.acting.team0 .dog-sprite { transform: translateY(-10px) scale(1.06); }
+  .pf.acting.team1 .dog-sprite { transform: translateY(10px) scale(1.06); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pf.acting .dog-sprite { transform: none !important; }
+}
+.pf .impact { background: var(--red); }
+.pf .impact.big { background: #ff3d2e; }
+.pf .impact.big + .dmg-num { color: var(--gold); font-size: 36px; }

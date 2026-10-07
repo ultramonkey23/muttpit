@@ -948,3 +948,10 @@ textarea, input[type="text"] {
 .pf .impact { background: var(--red); }
 .pf .impact.big { background: #ff3d2e; }
 .pf .impact.big + .dmg-num { color: var(--gold); font-size: 36px; }
+
+/* narrow screens: the logo sits under the key art instead of fighting it */
+@media (max-width: 720px) {
+  .title-hero .title-logo { position: static; font-size: clamp(48px, 17vw, 96px); margin: 10px 0 2px; }
+  .title-hero .title-sub { position: static; margin: 0 0 12px; letter-spacing: 0.12em; padding: 0 8px; }
+}
+.full-hint { font-size: 11px; color: #665646; margin-top: 4px; }

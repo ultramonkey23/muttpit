@@ -206,8 +206,60 @@ export function makeGhost(seed: number, index: number, pressure = 0): GhostKenne
   };
 }
 
-export function makeGhostLeague(seed: number, count: number, pressure = 0): GhostKennel[] {
+function normalizeName(name: string): string {
+  return name.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+const NAME_EXTRA = ["II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+
+/** Pick a kennel name for ghost `index` that is distinct from the player's
+ * kennel name and from every other ghost already placed this season. Comparison
+ * is case- and whitespace-insensitive. Deterministic from seed + index + player
+ * name, so the same season (and rename) always breeds the same rivals. */
+function uniqueKennelName(seed: number, index: number, playerName: string | undefined, used: Set<string>): string {
+  const norm = (s: string) => normalizeName(s);
+  const taken = (s: string) => {
+    const n = norm(s);
+    if (playerName !== undefined && n === norm(playerName)) return true;
+    return used.has(n);
+  };
+  const base = KENNEL_NAMES[((seed >>> 0) + index) % KENNEL_NAMES.length];
+  if (!taken(base)) {
+    used.add(norm(base));
+    return base;
+  }
+  for (const extra of NAME_EXTRA) {
+    const cand = `${base} ${extra}`;
+    if (!taken(cand)) {
+      used.add(norm(cand));
+      return cand;
+    }
+  }
+  let n = index + 1;
+  while (true) {
+    const cand = `${base} #${n}`;
+    if (!taken(cand)) {
+      used.add(norm(cand));
+      return cand;
+    }
+    n += 1;
+  }
+}
+
+export function makeGhostLeague(
+  seed: number,
+  count: number,
+  pressure = 0,
+  playerName?: string,
+): GhostKennel[] {
+  const used = new Set<string>();
   const ghosts: GhostKennel[] = [];
-  for (let i = 0; i < count; i++) ghosts.push(makeGhost(seed, i, pressure));
+  for (let i = 0; i < count; i++) {
+    const ghost = makeGhost(seed, i, pressure);
+    const name = uniqueKennelName(seed, i, playerName, used);
+    ghost.name = name;
+    ghost.kennel = { ...ghost.kennel, name };
+    ghosts.push(ghost);
+  }
   return ghosts;
 }

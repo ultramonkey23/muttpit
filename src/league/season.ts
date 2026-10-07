@@ -95,7 +95,7 @@ export function startSeason(player: Kennel, seasonSeed: number, division: number
     seed: seasonSeed >>> 0,
     week: 0,
     player: copyKennel(player),
-    ghosts: makeGhostLeague(seasonSeed, GHOST_COUNT, Math.max(0, season - 1 + division)),
+    ghosts: makeGhostLeague(seasonSeed, GHOST_COUNT, Math.max(0, season - 1 + division), player.name),
     schedule: buildSchedule(seasonSeed),
     playerResults: [],
     ghostResults: [],

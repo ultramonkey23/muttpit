@@ -559,7 +559,7 @@ function viewLeague(): string {
           ${nextOpp.kennel.dogs.slice(0, LINEUP_SIZE).map((d, i) => {
             const strain = STRAINS[d.strain];
             return `<div class="scout-dog strain-${d.strain}">
-              ${dogSvg(d, 96, { showBadge: false })}
+              ${dogSvg(d, 110, { showBadge: false, facing: "left" })}
               <div class="scout-copy">
                 <b>${esc(slotLabel(i))} · ${esc(d.name)}</b> <span class="look-name">${esc(lookFor(d).name)}</span>
                 <div class="trait-line">${esc(strain.name)} — ${esc(strain.trait)}</div>

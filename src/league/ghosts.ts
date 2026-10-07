@@ -3,7 +3,7 @@
  * Deterministic from seed: a ghost is an exact build, and its behavior is auditable.
  */
 
-import { TRICK_IDS, type StrainId } from "../engine/content";
+import { TRICKS, TRICK_IDS, type StrainId } from "../engine/content";
 import type { Dog } from "../engine/battle";
 import { mulberry32, rollInt } from "../engine/rng";
 import type { Kennel } from "../async/packets";
@@ -58,11 +58,84 @@ function pick<T>(rng: () => number, arr: T[]): T {
   return arr[rollInt(rng, arr.length)];
 }
 
-function makeGhostDog(rng: () => number, personality: Personality, skill: number, idx: number): Dog {
+/** A trick that can actually close a bout — a ghost with no bite never finishes one. */
+function isDamaging(trickId: string): boolean {
+  return (TRICKS[trickId]?.effects ?? []).some((e) => e.kind === "damage" || e.kind === "damageAll");
+}
+
+/**
+ * Ghost stat budget — the ladder itself. Every personality fields the same
+ * point budget per dog; ALLOC is a *flavor* weight for how those points spread,
+ * not the points themselves (the old proportional scaling starved aggressive
+ * and feral ghosts into free wins). Pressure is added outside the rng stream,
+ * so one seed breeds the same dog at every pressure — only harder — and the
+ * ladder climbs monotonically instead of re-rolling.
+ *
+ * Calibrated against the untouched starter trio in tests/ghost-ladder.test.ts:
+ * starter win rate lands 0.55-0.75 at pressure 0, falls every rung, and sits at
+ * or below 0.35 at pressure 6 (Crown Pit, late seasons).
+ */
+const BUDGET_BASE = 9;
+const BUDGET_SKILL = 6;
+const BUDGET_FRONT = 2;
+const BUDGET_PER_PRESSURE = 1.25;
+
+/** Largest-remainder split of `budget` across grit/fang/flea by flavor weights. */
+function allocateStats(
+  budget: number,
+  weights: { grit: number; fang: number; flea: number },
+): { grit: number; fang: number; flea: number } {
+  const total = weights.grit + weights.fang + weights.flea;
+  const raw = {
+    grit: (budget * weights.grit) / total,
+    fang: (budget * weights.fang) / total,
+    flea: (budget * weights.flea) / total,
+  };
+  const out = {
+    grit: Math.floor(raw.grit),
+    fang: Math.floor(raw.fang),
+    flea: Math.floor(raw.flea),
+  };
+  const remainders = (
+    [
+      { key: "grit", rem: raw.grit - out.grit },
+      { key: "fang", rem: raw.fang - out.fang },
+      { key: "flea", rem: raw.flea - out.flea },
+    ] as { key: "grit" | "fang" | "flea"; rem: number }[]
+  ).sort((a, b) => b.rem - a.rem);
+  let spent = out.grit + out.fang + out.flea;
+  let i = 0;
+  while (spent < budget) {
+    const key = remainders[i % remainders.length].key;
+    if (key === "grit") out.grit += 1;
+    else if (key === "fang") out.fang += 1;
+    else out.flea += 1;
+    spent += 1;
+    i += 1;
+  }
+  return out;
+}
+
+function makeGhostDog(
+  rng: () => number,
+  personality: Personality,
+  skill: number,
+  idx: number,
+  pressure: number,
+): Dog {
   const strain = pick(rng, STRAIN_POOL);
   const alloc = ALLOC[personality];
-  const budget = 8 + Math.round(skill * 4) + (idx === 0 ? 2 : 0);
-  const scale = budget / 10;
+  const budget =
+    BUDGET_BASE +
+    Math.round(skill * BUDGET_SKILL) +
+    (idx === 0 ? BUDGET_FRONT : 0) +
+    Math.round(Math.max(0, pressure) * BUDGET_PER_PRESSURE);
+  // flat core + personality flavor, so every personality is a real fight
+  const stats = allocateStats(budget, {
+    grit: 3 + alloc.grit,
+    fang: 3 + alloc.fang,
+    flea: 3 + alloc.flea,
+  });
   const prefs = PREFS[personality];
   const orderLen = 2 + rollInt(rng, 3);
   const biteOrder: string[] = [];
@@ -70,27 +143,36 @@ function makeGhostDog(rng: () => number, personality: Personality, skill: number
     const trick = rollInt(rng, 3) === 0 ? pick(rng, TRICK_IDS) : pick(rng, prefs);
     if (!biteOrder.includes(trick)) biteOrder.push(trick);
   }
+  // every ghost closes its own bouts: no all-utility bite orders. This branch
+  // only fires when the order holds no damaging trick, so the swap cannot dupe.
+  const damaging = prefs.filter(isDamaging);
+  if (damaging.length > 0 && !biteOrder.some(isDamaging)) {
+    biteOrder[0] = damaging[idx % damaging.length];
+  }
   return {
     id: `ghost-${personality}-${idx}-${rollInt(rng, 1 << 20)}`,
     name: `${pick(rng, PREFIX)} ${pick(rng, SUFFIX)}`,
     strain,
-    grit: Math.round(alloc.grit * scale),
-    fang: Math.round(alloc.fang * scale),
-    flea: Math.round(alloc.flea * scale),
+    grit: stats.grit,
+    fang: stats.fang,
+    flea: stats.flea,
     biteOrder,
     scars: [],
   };
 }
 
 /** pressure = season ladder (0-based) + division index; later weeks and higher
- * pits field sharper ghosts, player-like, without touching engine math. */
+ * pits field sharper ghosts, player-like, without touching engine math. The
+ * budget ladder lives in makeGhostDog — the same seed breeds the same dogs at
+ * every pressure, only stronger, so difficulty climbs monotonically (measured
+ * by tests/ghost-ladder.test.ts). */
 export function makeGhost(seed: number, index: number, pressure = 0): GhostKennel {
   const rng = mulberry32((seed ^ (index * 2654435761)) >>> 0);
   const personality = PERSONALITIES[rollInt(rng, PERSONALITIES.length)];
   const skill = Math.min(0.95, 0.25 + rng() * 0.6 + Math.max(0, pressure) * 0.05);
   const dogCount = 3 + rollInt(rng, 2);
   const dogs: Dog[] = [];
-  for (let i = 0; i < dogCount; i++) dogs.push(makeGhostDog(rng, personality, skill, i));
+  for (let i = 0; i < dogCount; i++) dogs.push(makeGhostDog(rng, personality, skill, i, pressure));
   const baseName = KENNEL_NAMES[((seed >>> 0) + index) % KENNEL_NAMES.length];
   const kennelName = index < KENNEL_NAMES.length ? baseName : `${baseName} #${index + 1}`;
   const motto = pick(rng, MOTTOS);

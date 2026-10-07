@@ -9,6 +9,7 @@ import { LOOKS, lookFor } from "./looks";
 import heroUrl from "./assets/hero.webp?url";
 import pitUrl from "./assets/pit.webp?url";
 import { eventDelay, eventFeedback } from "./playback";
+import { summarizeBout, type BoutReport, type DogReport } from "./boutReport";
 import { STRAINS, TRICKS, LINEUP_SIZE, type StrainId } from "./engine/content";
 import { effectiveStats, type BattleResult, type Dog, type Scar } from "./engine/battle";
 import { fnv1a } from "./engine/rng";
@@ -79,6 +80,7 @@ interface Bout {
   returnScreen: Screen;
   scarred: { dog: string; scar: Scar }[];
   record?: { kind: MailEntry["kind"]; label: string };
+  report: BoutReport;
 }
 
 const ROTATE_PRICE = 5;
@@ -206,31 +208,30 @@ function startBout(
     returnScreen,
     scarred,
     record,
+    report: summarizeBout(result, teams),
   };
   screen = "bout";
   if (save) {
     save.boutCounter += 1;
-    recordBout(result, teams[0]);
+    recordBout(bout.report, teams[0]);
     store();
   }
   runTimer();
 }
 
-/** Career record for the player's dogs (team A in every bout the player starts). */
-function recordBout(result: BattleResult, dogs: Dog[]): void {
+/** Career record for the player's dogs (team A in every bout the player starts), from the bout readout. */
+function recordBout(report: BoutReport, dogs: Dog[]): void {
   if (!save) return;
   const records = (save.records ??= {});
-  const last = result.events[result.events.length - 1];
-  const enemyDeaths = result.events.filter(
-    (e) => e.kind === "death" && e.target && !dogs.some((d) => d.name === e.target),
-  );
-  for (const d of dogs) {
-    const r = (records[d.id] ??= { bouts: 0, wins: 0, kos: 0, downs: 0 });
-    r.bouts += 1;
-    if (result.winner === 0) r.wins += 1;
-    r.kos += enemyDeaths.filter((e) => e.actor === d.name).length;
-    if ((last?.hp?.[`0:${d.name}`] ?? 1) <= 0) r.downs += 1;
-  }
+  report.dogs[0].forEach((r, slot) => {
+    const d = dogs[slot];
+    if (!d) return;
+    const rec = (records[d.id] ??= { bouts: 0, wins: 0, kos: 0, downs: 0 });
+    rec.bouts += 1;
+    if (report.winner === 0) rec.wins += 1;
+    rec.kos += r.kos;
+    if (r.downRound !== null) rec.downs += 1;
+  });
 }
 
 function runTimer(): void {
@@ -790,9 +791,41 @@ function viewBout(): string {
     <details class="receipts" ${done ? "" : "open"}><summary>the receipts — full bout log</summary><div class="ticker" id="ticker">${tickerLines}</div></details>`;
 }
 
-/** Post-bout readout: placeholder until the Lab's bout report lands. */
+/** Post-bout readout: what each dog actually did, and the Pit's factual notes. Never advice. */
 function viewReadout(): string {
-  return "";
+  if (!bout) return "";
+  const rep = bout.report;
+  const names = bout.teamNames;
+  const side = (team: 0 | 1) => {
+    const dogs = rep.dogs[team];
+    const top = dogs.reduce<DogReport | null>((a, b) => (!a || b.damageDealt > a.damageDealt ? b : a), null);
+    const rows = dogs.map((r) => {
+      const d = bout!.teams[team][r.slot];
+      const facts = [
+        `dealt <em>${r.damageDealt}</em>`,
+        `took <em>${r.damageTaken}</em>`,
+        r.shieldAbsorbed ? `shield ate <em>${r.shieldAbsorbed}</em>` : "",
+        r.healingDone ? `healed <em>${r.healingDone}</em>` : "",
+        r.kos ? `<em>${r.kos}</em> KO${r.kos === 1 ? "" : "s"}` : "",
+        r.downRound !== null
+          ? `down in round ${r.downRound}${r.downBy ? ` to ${esc(r.downBy)}` : " (bled out)"}`
+          : `standing at ${r.endHp}/${r.startHp}`,
+      ].filter(Boolean).join(" · ");
+      const slots = r.slots.filter((x) => x.plays > 0).map((x) =>
+        `${x.index + 1} ${esc(x.trickName)} ×${x.plays}${x.damage ? ` (${x.damage} dmg)` : x.healing ? ` (+${x.healing})` : x.statuses ? "" : " (nothing)"}`).join(" · ");
+      return `<div class="row ${r.downRound !== null ? "down" : ""}">
+        ${d ? dogSvg(d, 52, { mode: "sprite", facing: team === 0 ? "right" : "left" }) : ""}
+        <div><b>${esc(r.name)}${top && top === r && r.damageDealt >= 6 && r.damageDealt >= rep.totals[team].damageDealt * 0.4 ? '<span class="mvp">top biter</span>' : ""}</b>
+          <div class="facts">${facts}</div>
+          ${slots ? `<div class="facts">bites: ${slots}</div>` : ""}</div>
+      </div>`;
+    }).join("");
+    return `<div class="side ${team === 1 ? "them" : ""}"><h3>${esc(names[team])}</h3>${rows}</div>`;
+  };
+  const notes = rep.notes.map((n) => `<li>${esc(stageText(n.text, names))}</li>`).join("");
+  return `
+    <div class="readout">${side(0)}${side(1)}</div>
+    ${notes ? `<div class="pit-notes"><span class="tag violet">the pit's notes</span><ul>${notes}</ul></div>` : ""}`;
 }
 
 // ---------------------------------------------------------------- events

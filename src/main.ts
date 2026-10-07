@@ -96,6 +96,8 @@ let playbackToken = 0;
 let playbackSpeed = 1;
 let msg = "";
 let teachTarget: string | null = null;
+// Kennel lineup: tap a dog, then tap a spot to swap (index into kennel.dogs)
+let lineupPick: number | null = null;
 // mailbox drafts survive re-renders (a Quig toast must not eat pasted mail)
 const drafts = { oppCode: "", oppPacket: "" };
 
@@ -295,6 +297,8 @@ function currentHp(eventIdx: number, team: number, name: string, fallback: numbe
 
 // ---------------------------------------------------------------- render
 
+let renderedScreen: Screen | null = null;
+
 function render(): void {
   const body =
     screen === "title" ? viewTitle() :
@@ -308,20 +312,56 @@ function render(): void {
     screen === "title" || screen === "bout"
       ? ""
       : `<div class="navbar">
-      <button class="btn small secondary" data-act="goto" data-screen="kennel">Kennel</button>
-      <button class="btn small secondary" data-act="goto" data-screen="pound">Pound</button>
-      <button class="btn small secondary" data-act="goto" data-screen="league">Bone Bracket</button>
-      <button class="btn small secondary" data-act="goto" data-screen="mailbox">Mailbox</button>
+      ${(["kennel", "pound", "league", "mailbox"] as Screen[]).map((sc) =>
+        `<button class="btn small ${screen === sc ? "nav-on" : "secondary"}" data-act="goto" data-screen="${sc}" ${screen === sc ? 'aria-current="page"' : ""}>${{ kennel: "Kennel", pound: "Pound", league: "Bone Bracket", mailbox: "Mailbox" }[sc as "kennel"]}</button>`).join("")}
       <span style="flex:1"></span>
+      ${nextFightButton()}
       <span class="scrap-counter">${save?.scrap ?? 0} SCRAP</span>
     </div>`;
 
+  const screenChanged = renderedScreen !== screen;
+  renderedScreen = screen;
   app.innerHTML = `
     ${nav}
     ${msg ? `<div class="panel rust"><b>${esc(msg)}</b> <button class="btn small" data-act="dismiss">ok</button></div>` : ""}
     ${body}
     <div class="quig">${esc(quigLine())} <span style="opacity:.6">v0.1 · every build leaves a receipt.</span></div>
   `;
+  // a new screen starts at its top (the teach panel, the scout, the fight)
+  if (screenChanged) window.scrollTo(0, 0);
+}
+
+/** The way back to the Pit from any menu: scout and fight the next week. */
+function nextFightButton(): string {
+  const st = save?.seasonState;
+  if (!st || screen === "league") return "";
+  if (st.done) return `<button class="btn small lime" data-act="goto" data-screen="league">Season done — claim ▸</button>`;
+  const opp = st.ghosts[st.schedule[st.week]];
+  return `<button class="btn small lime next-fight" data-act="goto" data-screen="league" title="Scout and fight week ${st.week + 1}">Week ${st.week + 1}: vs ${esc(opp?.kennel.name ?? "?")} ▸</button>`;
+}
+
+/** Who fights where: tap a dog, then tap a spot. The first three fight; the fourth sits out. */
+function viewLineup(k: Kennel): string {
+  const slots = [0, 1, 2, 3].map((i) => {
+    const d = k.dogs[i];
+    const label = i < LINEUP_SIZE ? slotLabel(i) : "bench";
+    const picked = lineupPick === i;
+    const target = lineupPick !== null && !picked;
+    if (!d) {
+      return `<div class="lineup-slot empty ${i === 3 ? "bench" : ""}"><span class="slot-label">${label}</span><span class="empty-note">empty — the Pound sells dogs</span></div>`;
+    }
+    const st = effectiveStats(d);
+    return `<button class="lineup-slot strain-${d.strain} ${i === 3 ? "bench" : ""} ${picked ? "picked" : ""} ${target ? "target" : ""}" data-act="lineup-pick" data-i="${i}" aria-pressed="${picked}" aria-label="${esc(label)}: ${esc(d.name)}${picked ? " (picked — tap another spot to swap)" : ""}">
+      <span class="slot-label">${label}${i === 3 ? " · sits out" : ""}</span>
+      ${dogSvg(d, 90, { mode: "sprite" })}
+      <b>${esc(d.name)}</b>
+      <span class="slot-stats" title="GRIT ${st.grit} · FANG ${st.fang} · FLEA ${st.flea}"><i class="g">${st.grit}</i><i class="f">${st.fang}</i><i class="s">${st.flea}</i></span>
+    </button>`;
+  }).join("");
+  const hint = lineupPick !== null
+    ? `<b>${esc(k.dogs[lineupPick]?.name ?? "")}</b> picked — tap another spot to swap, or tap it again to cancel.`
+    : "Tap a dog, then tap a spot to swap. Front takes most direct hits; the first three fight.";
+  return `<div class="panel lineup-panel"><div class="lineup-head"><span class="tag violet">fight lineup</span><span class="lineup-hint">${hint}</span></div><div class="lineup">${slots}</div></div>`;
 }
 
 function viewTitle(): string {
@@ -390,9 +430,9 @@ function viewKennel(): string {
       const slot = esc(slotLabel(i));
       const orderLen = d.biteOrder.length;
       return `
-      <div class="dogcard strain-${d.strain}">
+      <div class="dogcard strain-${d.strain} ${i >= LINEUP_SIZE ? "benched" : ""}" id="dog-${i}">
         ${dogSvg(d, 240)}
-        <div class="name-row"><span class="name display">${esc(d.name)}</span> <span class="tag lime">${slot}</span>
+        <div class="name-row"><span class="name display">${esc(d.name)}</span> <span class="tag ${i < LINEUP_SIZE ? "lime" : "bench-tag"}">${i < LINEUP_SIZE ? slot : "bench — sits out"}</span>
           <button class="btn small secondary rename-dog" data-act="dog-rename" data-i="${i}" aria-label="Rename ${esc(d.name)}" title="rename">✎</button></div>
         ${dogIdentity(d)}
         <div class="mono-sm trait-line"><b>${esc(eff.name)}</b> — ${esc(eff.trait)}</div>
@@ -413,8 +453,7 @@ function viewKennel(): string {
         `).join("")}</div>
         ${d.scars.length ? `<div class="scarline">scars: ${d.scars.map((s) => esc(s.name)).join(", ")}</div>` : ""}
         <div class="btnrow">
-          <button class="btn small secondary" data-act="dog-up" data-i="${i}" ${i === 0 ? "disabled" : ""}>↑</button>
-          <button class="btn small secondary" data-act="dog-down" data-i="${i}" ${i === k.dogs.length - 1 ? "disabled" : ""}>↓</button>
+          ${orderLen < 4 ? `<button class="btn small violet" data-act="teach-from-kennel" data-i="${i}">+ learn a trick</button>` : ""}
           <button class="btn small danger" data-act="dog-release" data-i="${i}">release</button>
         </div>
       </div>`;
@@ -436,10 +475,11 @@ function viewKennel(): string {
         <span><b>FLEA</b> speed</span>
       </div>
     </div>
+    ${viewLineup(k)}
     <div class="doggrid">${dogCards}</div>
     <div class="panel">
       <span class="tag violet">the pit says</span>
-      <p style="margin-top:8px"><b>Front takes most direct pressure.</b> Mid and back follow; the fourth dog is your bench. Move dogs to change position and use ↑↓ to rewrite each Bite Order. Scout the next Bone Bracket opponent before committing the week.</p>
+      <p style="margin-top:8px">Each dog plays its <b>Bite Order</b> left to right, then loops. Use ↑↓ to change what lands first. Changes count from the very next bout.</p>
     </div>`;
 }
 
@@ -461,15 +501,23 @@ function viewPound(): string {
               <button class="btn small ${Number(teachTarget) === idx ? "lime" : "secondary"}" data-act="teach-pick" data-i="${idx}">${esc(dog.name)} <span class="mono-sm">(${esc(slotLabel(idx))})</span></button>
             `).join("")}
           </div>
-          <p class="mono-sm">teaching ${esc(save.kennel.dogs[Number(teachTarget)]?.name ?? "?")} this turn.</p>
-          <div class="btnrow">
+          ${(() => {
+            const pupil = s.kennel.dogs[Number(teachTarget)];
+            if (!pupil) return "";
+            const full = pupil.biteOrder.length >= 4;
+            return `<p class="teach-for">Teaching <b>${esc(pupil.name)}</b> · bite order ${pupil.biteOrder.length}/4${full ? " — full: remove a trick in the Kennel first" : ""}. New tricks join the end of the order.</p>
+          <div class="teach-options">
             ${offer.tricks.map((t) => {
               const trick = TRICKS[t];
-              return `<button class="btn small violet" data-act="teach" data-trick="${t}">${esc(trick.name)} — ${TRICK_PRICE} scrap</button>`;
+              const knows = pupil.biteOrder.includes(t);
+              const blocked = knows || full || s.scrap < TRICK_PRICE;
+              const why = knows ? "already knows it" : full ? "order full" : s.scrap < TRICK_PRICE ? "not enough scrap" : `${TRICK_PRICE} scrap`;
+              return `<button class="teach-option" data-act="teach" data-trick="${t}" ${blocked ? "disabled" : ""}>
+                <b>${esc(trick.name)}</b><span class="cost">${why}</span><small>${esc(trick.text)}</small></button>`;
             }).join("")}
-            <button class="btn small secondary" data-act="teach-cancel">cancel</button>
           </div>
-          <p class="mono-sm">the Pound stocks ${offer.tricks.map((t) => esc(TRICKS[t].name)).join(", ")} this week.</p>
+          <div class="btnrow"><button class="btn small secondary" data-act="teach-cancel">close</button></div>`;
+          })()}
         </div>`
       : "";
 
@@ -865,6 +913,30 @@ app.addEventListener("click", (e) => {
     case "goto":
       screen = target!.dataset.screen as Screen;
       msg = "";
+      lineupPick = null;
+      break;
+    case "lineup-pick": {
+      const dogs = save!.kennel.dogs;
+      if (i < 0 || i >= dogs.length) break;
+      if (lineupPick === null) {
+        lineupPick = i;
+      } else if (lineupPick === i) {
+        lineupPick = null;
+      } else {
+        const a = dogs[lineupPick];
+        [dogs[lineupPick], dogs[i]] = [dogs[i], dogs[lineupPick]];
+        say(`${a.name} ⇄ ${dogs[lineupPick].name}: ${a.name} now ${i < LINEUP_SIZE ? `fights ${slotLabel(i)}` : "sits on the bench"}.`);
+        lineupPick = null;
+        store();
+      }
+      break;
+    }
+    case "teach-from-kennel":
+      if (i >= 0 && i < save!.kennel.dogs.length) {
+        teachTarget = String(i);
+        screen = "pound";
+        msg = "";
+      }
       break;
     case "dog-rename": {
       const dog = save!.kennel.dogs[i];
@@ -891,20 +963,6 @@ app.addEventListener("click", (e) => {
       store();
       break;
     }
-    case "dog-up":
-      if (i > 0) {
-        const d = save!.kennel.dogs;
-        [d[i - 1], d[i]] = [d[i], d[i - 1]];
-        store();
-      }
-      break;
-    case "dog-down":
-      if (i < save!.kennel.dogs.length - 1) {
-        const d = save!.kennel.dogs;
-        [d[i + 1], d[i]] = [d[i], d[i + 1]];
-        store();
-      }
-      break;
     case "dog-release":
       if (save!.kennel.dogs.length > 1 && confirm(`Release ${save!.kennel.dogs[i].name} into the night?`)) {
         save!.kennel.dogs.splice(i, 1);
@@ -921,9 +979,12 @@ app.addEventListener("click", (e) => {
         say("Kennel is full — release a dog first.");
       } else {
         save!.scrap -= DOG_PRICE;
-        save!.kennel.dogs.push({ ...dog, id: `${dog.id}-${save!.boutCounter}`, look: lookFor(dog).id });
+        // dogs are keyed by name inside a bout: a kennel never holds two of one name
+        let name = dog.name;
+        for (let n = 2; save!.kennel.dogs.some((d) => d.name === name); n++) name = `${dog.name} ${["II", "III", "IV", "V"][n - 2] ?? n}`;
+        save!.kennel.dogs.push({ ...dog, name, id: `${dog.id}-${save!.boutCounter}`, look: lookFor(dog).id });
         store();
-        say(`${dog.name} joins the kennel.`);
+        say(`${name} joins the kennel.`);
       }
       break;
     }

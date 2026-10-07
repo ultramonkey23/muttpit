@@ -965,3 +965,89 @@ textarea, input[type="text"] {
 .threat-barrage .tk { background: var(--gold); }
 .threat-bleed .tk { background: var(--red); color: var(--bone); }
 .threat-shield .tk { background: var(--bone); }
+
+/* ---------- Wave 4: menus that get out of the way ---------- */
+
+.navbar { align-items: center; }
+.navbar .btn.nav-on { background: var(--gold); box-shadow: 4px 4px 0 var(--ink); transform: translateY(-1px); }
+.navbar .next-fight { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* fight lineup: tap a dog, then tap a spot */
+.lineup-panel { padding: 10px 12px 12px; }
+.lineup-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.lineup-hint { font-size: 12px; color: var(--bone-dim); }
+.lineup-hint b { color: var(--gold); }
+.lineup { display: grid; grid-template-columns: repeat(3, 1fr) 0.85fr; gap: 8px; }
+.lineup-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 6px 6px 8px;
+  background: radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--strain, #6b5a48) 30%, #2a1d15), #1c1410 75%);
+  border: 3px solid var(--ink);
+  box-shadow: 3px 3px 0 var(--ink);
+  color: var(--bone);
+  font: inherit;
+  cursor: pointer;
+  transition: transform 80ms, box-shadow 80ms, outline-color 80ms;
+}
+.lineup-slot:hover { transform: translate(-1px, -1px); }
+.lineup-slot .dog-sprite { height: 84px; width: 100%; display: flex; align-items: flex-end; justify-content: center; position: relative; }
+.lineup-slot .dog-sprite .scar-stickers { display: none; }
+.lineup-slot b { font-size: 12px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lineup-slot .slot-label { align-self: flex-start; font: 700 9px ui-monospace, monospace; letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink); background: var(--lime); padding: 1px 5px; }
+.lineup-slot.bench .slot-label { background: var(--bone-dim); }
+.lineup-slot.bench { opacity: 0.85; }
+.lineup-slot .slot-stats { font: 700 10px ui-monospace, monospace; color: var(--bone-dim); }
+.lineup-slot.picked { outline: 3px solid var(--gold); outline-offset: 2px; transform: translateY(-3px); }
+.lineup-slot.target { outline: 2px dashed var(--cyan); outline-offset: 1px; }
+.lineup-slot.empty { cursor: default; justify-content: center; min-height: 120px; border-style: dashed; border-color: var(--bone-dim); box-shadow: none; }
+.lineup-slot .empty-note { font-size: 11px; color: var(--bone-dim); text-align: center; }
+
+.tag.bench-tag { background: var(--bone-dim); color: var(--ink); }
+.dogcard.benched { opacity: 0.8; }
+
+/* compact bite-order rows: help text is a quiet second line, not a box */
+.order-editor .order-row { gap: 0; }
+.order-editor .trick-help { background: transparent; border-top: none; padding: 2px 7px 4px; font-size: 10.5px; color: #8a7a64; }
+.order-row { background: var(--coal-2); }
+
+@media (max-width: 720px) {
+  .lineup { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
+  .lineup-slot { padding: 4px 3px 6px; }
+  .lineup-slot .dog-sprite { height: 58px; }
+  .lineup-slot b { font-size: 10px; }
+  .lineup-slot .slot-label { font-size: 8px; padding: 1px 3px; }
+  .navbar .next-fight { order: 10; max-width: none; width: 100%; }
+  .order-editor .trick-help { display: none; }
+}
+.lineup-slot .slot-stats { display: flex; gap: 3px; }
+.lineup-slot .slot-stats i { font-style: normal; color: var(--ink); padding: 0 4px; border: 1.5px solid var(--ink); }
+.lineup-slot .slot-stats .g { background: var(--lime); }
+.lineup-slot .slot-stats .f { background: var(--rust); color: var(--bone); }
+.lineup-slot .slot-stats .s { background: var(--cyan); }
+@media (max-width: 720px) {
+  .navbar { gap: 5px; }
+  .navbar .btn.small { padding: 7px 7px; font-size: 10.5px; }
+  .navbar .scrap-counter { margin-left: auto; font-size: 14px; }
+  .panel.gold h2 { font-size: 22px; }
+  .panel.gold .stat-key { display: none; }
+  .panel.gold .btnrow { margin-top: 6px; }
+  .dogcard .dog-art { max-height: 190px; }
+  .lineup-slot .slot-stats i { padding: 0 2px; font-size: 9px; }
+}
+.teach-for { margin: 8px 0 6px; font-size: 13px; }
+.teach-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; }
+.teach-option {
+  display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; text-align: left;
+  background: var(--violet); color: var(--bone); border: 3px solid var(--ink); box-shadow: 4px 4px 0 var(--ink);
+  padding: 8px 10px; font: inherit; cursor: pointer;
+}
+.teach-option b { font-family: "Arial Black", Impact, sans-serif; text-transform: uppercase; font-size: 13px; }
+.teach-option .cost { font: 700 10px ui-monospace, monospace; background: var(--ink); color: var(--gold); padding: 1px 5px; align-self: start; }
+.teach-option small { grid-column: 1 / -1; font-size: 11.5px; line-height: 1.35; opacity: 0.92; }
+.teach-option:disabled { opacity: 0.45; cursor: not-allowed; }
+.teach-option:not(:disabled):active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--ink); }

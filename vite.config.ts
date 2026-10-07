@@ -5,7 +5,8 @@ export default defineConfig({
   build: {
     target: "es2020",
     outDir: "dist",
-    assetsInlineLimit: 262144,
+    // portraits ship as their own lazily-loaded files, not base64 inside the boot bundle
+    assetsInlineLimit: 4096,
   },
   test: {
     include: ["tests/**/*.test.ts"],

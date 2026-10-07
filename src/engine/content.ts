@@ -42,7 +42,7 @@ export const STRAINS: Record<StrainId, StrainDef> = {
     name: "Grem",
     blurb: "Small, loud, legally a hazard.",
     base: { grit: 10, fang: 5, flea: 4 },
-    trait: "Volatile — +2 FANG while below half GRIT.",
+    trait: "Volatile — +2 FANG once bloodied (below 75% GRIT).",
   },
   cur: {
     id: "cur",

@@ -33,6 +33,8 @@ export interface Dog {
   flea: number;
   biteOrder: string[];
   scars: Scar[];
+  /** authored look id (presentation identity) — the engine never reads it */
+  look?: string;
 }
 
 export interface BattleEvent {
@@ -42,6 +44,8 @@ export interface BattleEvent {
   actor?: string;
   target?: string;
   hp?: Record<string, number>;
+  /** live statuses per fighter ("team:name" -> "bleed2 shield3"); presentation only, never hashed */
+  fx?: Record<string, string>;
 }
 
 export interface BattleResult {
@@ -145,13 +149,26 @@ function hpSnapshot(sim: Sim): Record<string, number> {
   return out;
 }
 
+function fxSnapshot(sim: Sim): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of sim.fighters) {
+    if (!f.alive) continue;
+    const parts: string[] = [];
+    for (const k of Object.keys(f.statuses) as StatusId[]) {
+      if (f.statuses[k] > 0) parts.push(`${k}${f.statuses[k]}`);
+    }
+    if (parts.length) out[`${f.team}:${f.dog.name}`] = parts.join(" ");
+  }
+  return out;
+}
+
 function pushEvent(
   sim: Sim,
   kind: BattleEvent["kind"],
   text: string,
   extra: Partial<BattleEvent> = {},
 ): void {
-  sim.events.push({ round: sim.round, kind, text, hp: hpSnapshot(sim), ...extra });
+  sim.events.push({ round: sim.round, kind, text, hp: hpSnapshot(sim), fx: fxSnapshot(sim), ...extra });
 }
 
 function currentFang(f: Fighter): number {

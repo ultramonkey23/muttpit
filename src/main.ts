@@ -4,10 +4,13 @@
  */
 
 import "./style.css";
-import { dogSvg, pawSvg } from "./art";
+import { dogSvg, lookUrl, pawSvg } from "./art";
+import { LOOKS, lookFor } from "./looks";
+import heroUrl from "./assets/hero.webp?url";
+import pitUrl from "./assets/pit.webp?url";
 import { eventDelay, eventFeedback } from "./playback";
 import { STRAINS, TRICKS, LINEUP_SIZE, type StrainId } from "./engine/content";
-import type { BattleResult, Dog, Scar } from "./engine/battle";
+import { effectiveStats, type BattleResult, type Dog, type Scar } from "./engine/battle";
 import { fnv1a } from "./engine/rng";
 import type { Kennel, VerdictPacket } from "./async/packets";
 import {
@@ -53,6 +56,15 @@ interface Save {
   mail: MailEntry[];
   poundSeed: number;
   boutCounter: number;
+  /** per-dog career record, keyed by dog id (save-local; never mailed) */
+  records?: Record<string, DogRecord>;
+}
+
+interface DogRecord {
+  bouts: number;
+  wins: number;
+  kos: number;
+  downs: number;
 }
 
 interface Bout {
@@ -77,6 +89,7 @@ let save: Save | null = loadSave();
 let screen: Screen = save ? "kennel" : "title";
 let bout: Bout | null = null;
 let playbackToken = 0;
+let playbackSpeed = 1;
 let msg = "";
 let teachTarget: string | null = null;
 // mailbox drafts survive re-renders (a Quig toast must not eat pasted mail)
@@ -129,16 +142,17 @@ function starterKennel(): Kennel {
     name: "Bucket Kennels",
     motto: "Lose small. Scar big.",
     dogs: [
-      mk("Big Sad", "brute", 2, 3, 1, ["maul", "cower", "snap"]),
-      mk("Nubbins", "grem", 1, 4, 3, ["flurry", "mudtoss"]),
-      mk("Pockets", "cur", 2, 2, 2, ["fleabite", "sic", "snap"]),
-      mk("Wobbles", "mongrel", 3, 2, 3, ["packpounce", "howl"]),
+      mk("Big Sad", "brute", 2, 3, 1, ["maul", "cower", "snap"], "brute_bucket"),
+      mk("Nubbins", "grem", 1, 4, 3, ["flurry", "mudtoss"], "grem_chewtoy"),
+      mk("Pockets", "cur", 2, 2, 2, ["fleabite", "sic", "snap"], "cur_alleyjack"),
+      mk("Wobbles", "mongrel", 3, 2, 3, ["packpounce", "howl"], "mongrel_patchwork"),
     ],
   };
 }
 
-function mk(name: string, strain: StrainId, grit: number, fang: number, flea: number, order: string[]): Dog {
+function mk(name: string, strain: StrainId, grit: number, fang: number, flea: number, order: string[], look?: string): Dog {
   return {
+    look,
     id: `${name.toLowerCase().replace(/\W+/g, "-")}-${fnv1a(name + strain) % 9973}`,
     name,
     strain,
@@ -196,9 +210,27 @@ function startBout(
   screen = "bout";
   if (save) {
     save.boutCounter += 1;
+    recordBout(result, teams[0]);
     store();
   }
   runTimer();
+}
+
+/** Career record for the player's dogs (team A in every bout the player starts). */
+function recordBout(result: BattleResult, dogs: Dog[]): void {
+  if (!save) return;
+  const records = (save.records ??= {});
+  const last = result.events[result.events.length - 1];
+  const enemyDeaths = result.events.filter(
+    (e) => e.kind === "death" && e.target && !dogs.some((d) => d.name === e.target),
+  );
+  for (const d of dogs) {
+    const r = (records[d.id] ??= { bouts: 0, wins: 0, kos: 0, downs: 0 });
+    r.bouts += 1;
+    if (result.winner === 0) r.wins += 1;
+    r.kos += enemyDeaths.filter((e) => e.actor === d.name).length;
+    if ((last?.hp?.[`0:${d.name}`] ?? 1) <= 0) r.downs += 1;
+  }
 }
 
 function runTimer(): void {
@@ -220,7 +252,7 @@ function runTimer(): void {
     }
     const prev = bout.result.events[bout.idx - 1];
     const next = bout.result.events[bout.idx];
-    bout.timer = window.setTimeout(schedule, eventDelay(prev, next));
+    bout.timer = window.setTimeout(schedule, eventDelay(prev, next) / playbackSpeed);
   };
   if (!bout) return;
   if (bout.idx >= bout.result.events.length) {
@@ -228,7 +260,7 @@ function runTimer(): void {
     return;
   }
   const first = bout.result.events[bout.idx];
-  bout.timer = window.setTimeout(schedule, eventDelay(null, first));
+  bout.timer = window.setTimeout(schedule, eventDelay(null, first) / playbackSpeed);
 }
 
 function finishBoutPlayback(): void {
@@ -291,8 +323,11 @@ function render(): void {
 
 function viewTitle(): string {
   return `
-    <h1 class="title-logo display">MUTTPIT</h1>
-    <div class="title-sub">async scrap-league auto-battler · draft · mail · verdict</div>
+    <div class="title-hero">
+      <img src="${heroUrl}" alt="A crowd of scarred, armored mongrels squaring off in a junkyard fighting pit" width="1280" height="640" fetchpriority="high"/>
+      <h1 class="title-logo display">MUTTPIT</h1>
+      <div class="title-sub">async scrap-league auto-battler · draft · mail · verdict</div>
+    </div>
     <div class="panel bone">
       <p><b>Draft mongrels, write their bite order, mail your kennel into the Pit —
       every verdict keeps its receipts.</b></p>
@@ -311,7 +346,30 @@ function viewTitle(): string {
         <div><b>3 · FIGHT</b><span>Bouts auto-resolve from exact builds. Watch the sequence, then adapt instead of clicking attacks.</span></div>
         <div><b>4 · CLIMB</b><span>Survive 8-week Bone Brackets, earn scars and scrap, or mail a kennel code to another player.</span></div>
       </div>
+    </div>
+    <div class="panel">
+      <span class="tag gold-tag">the strains</span>
+      <div class="strain-lineup">
+        ${(Object.keys(STRAINS) as StrainId[]).map((id) => {
+          const look = LOOKS[id][0];
+          return `<div class="cell strain-${id}">
+            <figure class="dog-art"><img class="dog-img" src="${lookUrl(look.id)}" alt="${esc(STRAINS[id].name)}" loading="lazy"/></figure>
+            <b>${esc(STRAINS[id].name)}</b><span>${esc(STRAINS[id].blurb)}</span>
+          </div>`;
+        }).join("")}
+      </div>
     </div>`;
+}
+
+/** Look name, temperament and career record — who the dog is, beyond its stat line. */
+function dogIdentity(d: Dog, withRecord = true): string {
+  const look = lookFor(d);
+  const rec = withRecord ? save?.records?.[d.id] : undefined;
+  const record = rec && rec.bouts
+    ? `${rec.bouts} bout${rec.bouts === 1 ? "" : "s"} · ${rec.wins}W · ${rec.kos} KO${rec.kos === 1 ? "" : "s"}${rec.downs ? ` · dropped ${rec.downs}×` : ""}`
+    : withRecord ? "unblooded" : "";
+  return `<div class="name-row"><span class="look-name">${esc(look.name)}</span>${record ? `<span class="dog-record">${record}</span>` : ""}</div>
+        <div class="look-line">&ldquo;${esc(look.line)}&rdquo;</div>`;
 }
 
 function slotLabel(i: number): string {
@@ -325,17 +383,20 @@ function viewKennel(): string {
   const dogCards = k.dogs
     .map((d, i) => {
       const eff = STRAINS[d.strain];
+      const stats = effectiveStats(d);
       const slot = esc(slotLabel(i));
       const orderLen = d.biteOrder.length;
       return `
-      <div class="dogcard">
-        ${dogSvg(d, 220)}
-        <div class="name display">${esc(d.name)} <span class="tag lime">${slot}</span></div>
-        <div class="mono-sm trait-line">${esc(eff.name)} — ${esc(eff.trait)}</div>
+      <div class="dogcard strain-${d.strain}">
+        ${dogSvg(d, 240)}
+        <div class="name-row"><span class="name display">${esc(d.name)}</span> <span class="tag lime">${slot}</span>
+          <button class="btn small secondary rename-dog" data-act="dog-rename" data-i="${i}" aria-label="Rename ${esc(d.name)}" title="rename">✎</button></div>
+        ${dogIdentity(d)}
+        <div class="mono-sm trait-line"><b>${esc(eff.name)}</b> — ${esc(eff.trait)}</div>
         <div class="stats">
-          <span class="chip grit">GRIT ${eff.base.grit + d.grit + d.scars.reduce((s, x) => s + x.dGrit, 0)}</span>
-          <span class="chip fang">FANG ${eff.base.fang + d.fang + d.scars.reduce((s, x) => s + x.dFang, 0)}</span>
-          <span class="chip flea">FLEA ${eff.base.flea + d.flea + d.scars.reduce((s, x) => s + x.dFlea, 0)}</span>
+          <span class="chip grit">GRIT ${stats.grit}</span>
+          <span class="chip fang">FANG ${stats.fang}</span>
+          <span class="chip flea">FLEA ${stats.flea}</span>
         </div>
         <div class="bite-label"><span>BITE ORDER</span><small>plays left → right, then loops ↻</small></div>
         <div class="order-editor">${d.biteOrder.map((t, ti) => `
@@ -420,10 +481,11 @@ function viewPound(): string {
       ${offer.dogs
         .map(
           (d, i) => `
-        <div class="dogcard">
-          ${dogSvg(d, 200)}
+        <div class="dogcard strain-${d.strain}">
+          ${dogSvg(d, 220)}
           <div class="name display">${esc(d.name)}</div>
-          <div class="mono-sm">${esc(STRAINS[d.strain].name)} — ${esc(STRAINS[d.strain].trait)}</div>
+          ${dogIdentity(d, false)}
+          <div class="mono-sm trait-line"><b>${esc(STRAINS[d.strain].name)}</b> — ${esc(STRAINS[d.strain].trait)}</div>
           <div class="stats">
             <span class="chip grit">GRIT ${STRAINS[d.strain].base.grit + d.grit}</span>
             <span class="chip fang">FANG ${STRAINS[d.strain].base.fang + d.fang}</span>
@@ -496,10 +558,10 @@ function viewLeague(): string {
         <div class="scout-grid">
           ${nextOpp.kennel.dogs.slice(0, LINEUP_SIZE).map((d, i) => {
             const strain = STRAINS[d.strain];
-            return `<div class="scout-dog">
-              ${dogSvg(d, 88)}
+            return `<div class="scout-dog strain-${d.strain}">
+              ${dogSvg(d, 96, { showBadge: false })}
               <div class="scout-copy">
-                <b>${esc(slotLabel(i))} · ${esc(d.name)}</b>
+                <b>${esc(slotLabel(i))} · ${esc(d.name)}</b> <span class="look-name">${esc(lookFor(d).name)}</span>
                 <div class="trait-line">${esc(strain.name)} — ${esc(strain.trait)}</div>
                 <div class="stats"><span class="chip grit">GRIT ${strain.base.grit + d.grit}</span><span class="chip fang">FANG ${strain.base.fang + d.fang}</span><span class="chip flea">FLEA ${strain.base.flea + d.flea}</span></div>
                 <div class="scout-order">${d.biteOrder.map((t, ti) => `<span><b>${ti + 1}</b> ${esc(TRICKS[t]?.name ?? t)}</span>`).join("")}</div>
@@ -582,102 +644,154 @@ function viewMailbox(): string {
     </div>`;
 }
 
+function maxGrit(d: Dog): number {
+  return effectiveStats(d).grit;
+}
+
+/** Who the current trick is about to land on: every target its effects touch before the next trick. */
+function trickTargets(events: BattleResult["events"], idx: number): Set<string> {
+  const out = new Set<string>();
+  const trick = events[idx];
+  if (!trick || trick.kind !== "trick") return out;
+  for (let k = idx + 1; k < events.length; k++) {
+    const e = events[k];
+    if (e.kind === "trick" || e.kind === "end") break;
+    if (e.actor === trick.actor && e.target && e.target !== trick.actor) out.add(e.target);
+  }
+  return out;
+}
+
+/** The engine's log says "Team A/B"; the stage says the kennel names. Display only — the hashed text is untouched. */
+function stageText(text: string, names: [string, string]): string {
+  return text.replace(/\bteam A\b/gi, names[0]).replace(/\bteam B\b/gi, names[1]);
+}
+
+const STATUS_LABEL: Record<string, string> = { bleed: "BLEED", shield: "SHLD", rage: "RAGE", cower: "COWER", marked: "MARK", dodge: "DODGE" };
+
+function statusChips(fx: string | undefined): string {
+  if (!fx) return "";
+  return fx
+    .split(" ")
+    .map((tok) => {
+      const m = tok.match(/^([a-z]+)(\d+)$/);
+      if (!m) return "";
+      return `<span class="st ${m[1]}" title="${m[1].toUpperCase()} ${m[2]}">${STATUS_LABEL[m[1]] ?? m[1]} ${m[2]}</span>`;
+    })
+    .join("");
+}
+
 function viewBout(): string {
   if (!bout) return viewTitle();
-  const ev = bout.result.events[Math.max(0, bout.idx - 1)];
-  const done = bout.idx >= bout.result.events.length;
+  const events = bout.result.events;
+  const curIdx = Math.max(0, bout.idx - 1);
+  const ev = bout.idx > 0 ? events[curIdx] : undefined;
+  const done = bout.idx >= events.length;
   const won = bout.result.winner;
+  const names = bout.teamNames;
 
   const fb = ev ? eventFeedback(ev, bout.teams) : null;
-  const prevEv = bout.idx > 1 ? bout.result.events[bout.idx - 2] : null;
+  const prevEv = bout.idx > 1 ? events[bout.idx - 2] : null;
   const roundChanged = !!ev && !!prevEv && ev.round !== prevEv.round;
+  const targets = ev && ev.kind === "trick" ? trickTargets(events, curIdx) : new Set<string>();
+  const actorTeam = fb?.actor?.team;
 
-  const fighterCard = (team: 0 | 1, slot: number, d: Dog) => {
-    const hp = currentHp(bout!.idx, team, d.name, STRAINS[d.strain].base.grit + d.grit);
-    const max = STRAINS[d.strain].base.grit + d.grit;
+  const fighter = (team: 0 | 1, slot: number, d: Dog) => {
+    const max = maxGrit(d);
+    const hp = currentHp(bout!.idx, team, d.name, max);
     const pct = Math.max(0, Math.min(100, (hp / max) * 100));
-    const dead = currentHp(bout!.idx, team, d.name, 0) <= 0 && bout!.idx > 0;
-    let cls = `fighter ${team === 1 ? "enemy" : ""} ${dead ? "dead" : ""}`;
+    const dead = bout!.idx > 0 && hp <= 0;
+    const key = `${team}:${d.name}`;
+    const fx = ev?.fx?.[key];
+    let cls = `pf team${team}`;
     let extra = "";
-    if (fb) {
-      if (fb.actor && fb.actor.team === team && fb.actor.slot === slot) {
-        cls += team === 0 ? " lunge-right" : " lunge-left";
+    if (fb?.actor && fb.actor.team === team && fb.actor.slot === slot && !dead) cls += " acting";
+    if (targets.has(d.name) && actorTeam !== undefined && actorTeam !== team && !dead) cls += " targeted";
+    if (fb?.target && fb.target.team === team && fb.target.slot === slot) {
+      if (fb.kind === "death") { cls += " ko"; extra = `<span class="ko-stamp">KO</span>`; }
+      else if (fb.kind === "dodge") cls += " dodge";
+      else if (fb.kind === "shield") cls += " shield";
+      else if (fb.kind === "hit") {
+        cls += " hit";
+        const big = (fb.damage ?? 0) >= 8;
+        extra = `<span class="impact${big ? " big" : ""}" aria-hidden="true"></span><span class="dmg-num">-${fb.damage ?? 0}</span>`;
       }
-      if (fb.target && fb.target.team === team && fb.target.slot === slot) {
-        if (fb.kind === "death") cls += " ko";
-        else if (fb.kind === "dodge") cls += " dodge";
-        else if (fb.kind === "shield") cls += " shield";
-        else if (fb.kind === "hit") { cls += " hit-flash shake"; extra = `<span class="dmg-num">-${fb.damage ?? 0}</span>`; }
-        else if (fb.kind === "heal") { cls += " heal-flash"; extra = `<span class="heal-num">+${fb.damage ?? 0}</span>`; }
-      }
+      else if (fb.kind === "heal") { cls += " heal"; extra = `<span class="heal-num">+${fb.damage ?? 0}</span>`; }
     }
+    if (dead && !(fb?.kind === "death" && fb.target?.team === team && fb.target.slot === slot)) cls += " dead";
     return `
-      <div class="${cls.trim()}" id="fighter-${team}-${slot}">
-        ${dogSvg(d, 72)}
-        <div style="flex:1">
-          <b>${esc(d.name)}</b>
-          <div class="hpbar"><div class="fill ${pct < 30 ? "low" : ""}" style="width:${pct}%"></div></div>
-          <div class="mono-sm">${hp}/${max} grit</div>
+      <div class="${cls}" id="fighter-${team}-${slot}" style="--idle-delay:${-(slot * 0.7 + team * 0.35)}s">
+        <div class="pf-status">${dead ? "" : statusChips(fx)}</div>
+        ${dogSvg(d, 150, { mode: "sprite", facing: team === 0 ? "right" : "left" })}
+        <div class="pf-plate">
+          <span class="pf-name"><i>${esc(slotLabel(slot))}</i> ${esc(d.name)}</span>
+          <div class="pf-hp"><div class="hpbar"><div class="fill ${pct < 30 ? "low" : ""}" style="width:${pct}%"></div></div><span>${hp}/${max}</span></div>
         </div>
         ${extra}
       </div>`;
   };
 
-  const teamRow = (team: 0 | 1) => {
-    const cards = bout!.teams[team].map((d, slot) => fighterCard(team, slot, d));
+  // front dogs meet in the middle: player reads back→front, opponent front→back
+  const side = (team: 0 | 1) => {
+    const cards = bout!.teams[team].map((d, slot) => fighter(team, slot, d));
     if (team === 0) cards.reverse();
-    return `<div class="fight-row ${team === 1 ? "right" : "left"}">${cards.join("")}</div>`;
+    return `<div class="pit-side ${team === 0 ? "left" : "right"}">${cards.join("")}</div>`;
   };
 
-  const tickerLines = bout.result.events
+  const tickerLines = events
     .slice(0, bout.idx)
     .map((e, i, arr) => {
       const prev = arr[i - 1];
       const sep = (!prev || prev.round !== e.round) ? [`<div class="line hot">— ROUND ${e.round} —</div>`] : [];
       const cls = e.kind === "death" ? "bad" : e.kind === "heal" ? "good" : i === arr.length - 1 ? "hot" : "";
-      return [...sep, `<div class="line ${cls}">[${e.round}] ${esc(e.text)}</div>`];
+      return [...sep, `<div class="line ${cls}">[${e.round}] ${esc(stageText(e.text, names))}</div>`];
     })
     .flat()
     .join("");
 
-  const trickName = fb && fb.kind === "trick" && ev ? (ev.text.match(/plays (.+?)\./)?.[1] ?? "") : "";
-  const splash = fb && fb.kind === "trick" && trickName
-    ? `<div class="trick-splash">${esc(trickName)}</div>` : "";
-  const roundBanner = roundChanged ? `<div class="round-banner">ROUND ${ev!.round}</div>` : "";
+  const trickName = fb && fb.kind === "trick" && ev ? (ev.text.match(/plays (.+?)\.$/)?.[1] ?? "") : "";
+  const splash = trickName ? `<div class="trick-splash team${actorTeam ?? 0}">${esc(trickName)}</div>` : "";
+  const roundBanner = roundChanged && fb?.kind !== "trick" ? `<div class="round-banner">ROUND ${ev!.round}</div>` : "";
+  const callout = ev
+    ? `<div class="pit-callout"><span class="rd">R${ev.round}</span>${esc(stageText(ev.text, names))}</div>`
+    : `<div class="pit-callout">The Pit locks the gate.</div>`;
 
   const banner = done
     ? `<div class="verdict-banner slam ${won === 1 ? "lost" : won === -1 ? "draw" : ""}">
-        <div class="display">${won === -1 ? "Draw" : won === 0 ? esc(bout.teamNames[0]) : esc(bout.teamNames[1])} takes it</div>
-        <p>${bout.result.rounds} rounds · log ${esc(bout.result.logHash)}</p>
-        ${bout.scarred.length ? `<p class="scarline">scars: ${bout.scarred.map((s) => `${esc(s.dog)} → ${esc(s.scar.name)}`).join(", ")}</p>` : ""}
+        <div class="display">${won === -1 ? "Draw — nobody eats" : `${esc(won === 0 ? names[0] : names[1])} takes it`}</div>
+        <p>${bout.result.rounds} rounds · log ${esc(bout.result.logHash)} · the packet replays byte-for-byte</p>
+        ${bout.scarred.length ? `<p class="scarline">new scars: ${bout.scarred.map((s) => `${esc(s.dog)} → ${esc(s.scar.name)}`).join(", ")}</p>` : ""}
         <div class="btnrow" style="justify-content:center">
           <button class="btn cyan" data-act="copy-packet">copy verdict packet</button>
           <button class="btn" data-act="bout-exit">back</button>
         </div>
-      </div>`
+      </div>
+      ${viewReadout()}`
     : "";
 
   return `
-    <div class="panel gold"><h2>${esc(bout.label)}</h2>
-      <p class="mono-sm">round ${ev?.round ?? 0} · deterministic replay · every verdict keeps its receipts</p></div>
-    <div class="battle-stage">
-      ${teamRow(0)}
-      <div class="center-col">
-        <div class="stage-center">
-          ${roundBanner}
-          ${splash}
-          <div class="trick-flash">${esc(ev ? ev.text.slice(0, 60) : "The Pit locks the gate.")}</div>
-        </div>
-        <div class="btnrow" style="justify-content:center">
-          <button class="btn small ${bout.playing ? "danger" : "lime"}" data-act="bout-toggle">${bout.playing ? "pause" : "play"}</button>
-          <button class="btn small secondary" data-act="bout-step">step</button>
-          <button class="btn small secondary" data-act="bout-skip">skip</button>
-        </div>
-        <div class="ticker" id="ticker">${tickerLines}</div>
-      </div>
-      ${teamRow(1)}
+    <div class="panel gold pit-head"><h2>${esc(bout.label)}</h2>
+      <span class="vs">${esc(names[0])}<em>vs</em>${esc(names[1])}</span></div>
+    <div class="pit" style="--pit-bg:url('${pitUrl}')">
+      ${callout}
+      ${side(0)}
+      <div class="pit-mid"></div>
+      ${side(1)}
+      ${roundBanner}
+      ${splash}
     </div>
-    ${banner}`;
+    <div class="pit-controls">
+      <button class="btn small ${bout.playing ? "danger" : "lime"}" data-act="bout-toggle" ${done ? "disabled" : ""}>${bout.playing ? "pause" : "play"}</button>
+      <button class="btn small secondary" data-act="bout-step" ${done ? "disabled" : ""}>step</button>
+      <button class="btn small secondary" data-act="bout-speed" title="playback speed">${playbackSpeed}× speed</button>
+      <button class="btn small secondary" data-act="bout-skip" ${done ? "disabled" : ""}>skip to verdict</button>
+    </div>
+    ${banner}
+    <details class="receipts" ${done ? "" : "open"}><summary>the receipts — full bout log</summary><div class="ticker" id="ticker">${tickerLines}</div></details>`;
+}
+
+/** Post-bout readout: placeholder until the Lab's bout report lands. */
+function viewReadout(): string {
+  return "";
 }
 
 // ---------------------------------------------------------------- events
@@ -708,7 +822,25 @@ app.addEventListener("click", (e) => {
       break;
     case "goto":
       screen = target!.dataset.screen as Screen;
+      msg = "";
       break;
+    case "dog-rename": {
+      const dog = save!.kennel.dogs[i];
+      if (!dog) break;
+      const name = prompt(`New name for ${dog.name}`, dog.name)?.trim();
+      if (name && name !== dog.name) {
+        if (save!.kennel.dogs.some((d) => d !== dog && d.name === name)) {
+          say("Two dogs, one name? The Pit's paperwork can't take it.");
+        } else {
+          // keep the face: a rename must not re-roll who the dog is
+          dog.look = lookFor(dog).id;
+          dog.name = name.slice(0, 24);
+          store();
+          say(`Filed. The Pit now calls it ${dog.name}.`);
+        }
+      }
+      break;
+    }
     case "rename": {
       const name = prompt("Kennel name", save!.kennel.name);
       const motto = prompt("Kennel motto", save!.kennel.motto);
@@ -747,7 +879,7 @@ app.addEventListener("click", (e) => {
         say("Kennel is full — release a dog first.");
       } else {
         save!.scrap -= DOG_PRICE;
-        save!.kennel.dogs.push({ ...dog, id: `${dog.id}-${save!.boutCounter}` });
+        save!.kennel.dogs.push({ ...dog, id: `${dog.id}-${save!.boutCounter}`, look: lookFor(dog).id });
         store();
         say(`${dog.name} joins the kennel.`);
       }
@@ -935,6 +1067,10 @@ app.addEventListener("click", (e) => {
         if (bout.timer) window.clearTimeout(bout.timer);
         if (bout.playing) runTimer();
       }
+      break;
+    case "bout-speed":
+      playbackSpeed = playbackSpeed === 1 ? 2 : playbackSpeed === 2 ? 4 : 1;
+      if (bout?.playing) runTimer();
       break;
     case "bout-step":
       playbackToken++;

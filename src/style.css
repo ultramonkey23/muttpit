@@ -926,3 +926,6 @@ textarea, input[type="text"] {
   .pit .trick-splash { top: 47%; }
   .pf-status { top: 0; }
 }
+.scout-dog { grid-template-columns: 124px minmax(0, 1fr); }
+.scout-dog .dog-art { aspect-ratio: 1 / 1; }
+@media (max-width: 520px) { .scout-dog { grid-template-columns: 104px minmax(0, 1fr); } }

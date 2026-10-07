@@ -50,7 +50,7 @@ Street-courtroom comic brutalism. The Pit speaks like a boxing promoter with a f
 
 - TypeScript + Vite, zero runtime dependencies. Static `dist/` suitable for the Studios site (iframe or direct hosting).
 - Pure engine (`src/engine`, `src/league`, `src/async`) — no DOM imports; tested with vitest.
-- All art procedural (SVG/CSS from dog hashes) — no binary assets, no image generation.
+- Art is authored-then-generated, never vibed: dog looks and key art are generated on the Studio's local GPU (FLUX.2 Klein 4B through the Lab comfy bridge), art-directed, curated, re-rolled when weak, cut and shipped as small WebP (~20 KB per look; whole art set ~1.3 MB). Procedural identity is layered on top in code (coat shift, scar stickers, strain frames, silhouette scale). UI chrome stays SVG/CSS. Generated images carry no lettering — all text is typeset by the game.
 - Size budget: `npm run size` measures `dist/` and fails at >= 25 MB.
 
 ## Field truth: balance & progression (measured, not vibed)
@@ -61,3 +61,10 @@ Street-courtroom comic brutalism. The Pit speaks like a boxing promoter with a f
 - Progression heat: the Pound's offers roll richer as a career deepens — offer budgets gain `min(6, (season-1) + division)` stat points. Season 1 Sewer drafts are scrappy; Crown Pit season 4 drafts are monsters.
 - Ghost pressure: ghost kennel skill scales with season + division, so the ladder actually climbs. Promotion is a harder Pit, not just a fancier name.
 - Reorderable bite orders are the core toy: every dog's trick queue is editable (move/remove) because "write their bite order" is the pitch, not a tooltip.
+
+## Visual grammar: dogs you remember (Wave 3)
+
+- **Six authored looks per strain** (`src/looks.ts`), each with a name and a temperament line in the Pit's voice. A look is presentation identity: stable per dog (stamped on purchase, kept through renames, mailed inside kennel codes) and **never read by the engine** — no look changes a verdict.
+- **Strain silhouettes are the grammar:** Mongrel = everyman mutt with junk trinkets; Bonehound = undead, bare bone, teal glow; Grem = tiny hairless bat-eared hazard with too many teeth; Cur = lean, scarred, slinking, bloody; Brute = massive, jowled, armored in junk (hubcaps, padlocks, oil drums, buckets); Pupp = oversized paws and head, charm with one sharp fang. In the Pit, strain scale is literal (Brute fills the frame, Grem barely clears the dirt).
+- **Scars are worn, not listed:** every scar becomes a sticker on the dog's portrait.
+- **The fight is staged, the receipts stay exact:** full-body dogs face off in the Pit; live statuses (BLEED/SHIELD/RAGE/COWER/MARK/DODGE) render from a presentation-only snapshot on each event (`fx`), outside the hashed fields — replay hashes and Verdict Packets are byte-identical to before.

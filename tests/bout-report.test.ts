@@ -169,6 +169,19 @@ describe("summarizeBout: Pit notes", () => {
     expect(mine!.text).toBe(`Hammer dealt ${report.dogs[0][0].damageDealt} of Team A's ${report.totals[0].damageDealt} damage (100%).`);
   });
 
+  it("carried: omits a high share when the team's total is trivial for the bout", () => {
+    const hugeGrems: Dog[] = [
+      dog("Gnash", "grem", 1000, 0, 0, ["snap"]),
+      dog("Nipper", "grem", 1000, 0, 0, ["snap"]),
+    ];
+    const report = summarizeBout(simulateBattle(HAMMER, hugeGrems, 7), [HAMMER, hugeGrems]);
+    expect(report.totals[0].damageDealt).toBeGreaterThan(0);
+    expect(report.totals[0].damageDealt).toBeLessThan(
+      report.dogs[1].reduce((sum, d) => sum + d.startHp, 0) * 0.1,
+    );
+    expect(notesOf(report, "carried").some((n) => n.team === 0)).toBe(false);
+  });
+
   it("no-damage: flags a dog that played tricks and never landed a bite", () => {
     const report = summarizeBout(simulateBattle(HAMMER, GREMS, 7), [HAMMER, GREMS]);
     const pal = notesOf(report, "no-damage").find((n) => n.subject?.team === 0 && n.subject.slot === 1);

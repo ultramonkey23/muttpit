@@ -117,6 +117,11 @@ const APPLIED = / starts bleeding\.$| gains [A-Z]+ \d+\.$/;
 const MAX_NOTES_PER_KIND = 2;
 const CARRY_SHARE = 0.6;
 
+// A high share is only "carried" when the side made a meaningful dent: require
+// at least 10% of the opposing side's starting grit, using this bout's numbers.
+// A zero-grit opponent keeps the existing share-only behavior for synthetic bouts.
+const CARRY_MIN_OPPOSING_GRIT_SHARE = 0.1;
+
 function teamLabel(team: Side): string {
   return team === 0 ? "Team A" : "Team B";
 }
@@ -465,6 +470,8 @@ function buildNotes(
   for (const team of loserFirst(winner)) {
     const total = totals[team].damageDealt;
     if (total <= 0 || dogs[team].length < 2 || carried >= MAX_NOTES_PER_KIND) continue;
+    const opposingStartGrit = dogs[other(team)].reduce((sum, d) => sum + d.startHp, 0);
+    if (opposingStartGrit > 0 && total < opposingStartGrit * CARRY_MIN_OPPOSING_GRIT_SHARE) continue;
     const top = dogs[team].reduce((a, b) => (b.damageDealt > a.damageDealt ? b : a));
     if (top.damageDealt / total < CARRY_SHARE) continue;
     carried += 1;

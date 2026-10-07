@@ -37,6 +37,21 @@ export const ALLOC: Record<Personality, { grit: number; fang: number; flea: numb
   feral: { grit: 1, fang: 1, flea: 2 },
 };
 
+// Aggressive ghosts field a slightly lower budget than the other personalities.
+// Measured on two independent seed families, the untouched starter trio beat
+// aggressive ghosts only ~0.14 of the time at pressure 0 (a near auto-loss that
+// decided ~one week in eight by the schedule alone). Trimming their budget —
+// not the shared ALLOC split — keeps aggressive the hardest matchup while lifting
+// the starter above the 0.25 floor on every family. Other personalities keep the
+// full budget so the overall ladder and balance harness are untouched.
+const PERSONALITY_BUDGET_DELTA: Record<Personality, number> = {
+  aggressive: -4,
+  defensive: 0,
+  trickster: 0,
+  pack: 0,
+  feral: 0,
+};
+
 const STRAIN_POOL: StrainId[] = ["mongrel", "bonehound", "grem", "cur", "brute", "pupp"];
 
 const PREFIX = ["Gnash", "Rip", "Snarl", "Vex", "Mange", "Brut", "Cinder", "Howl", "Gore", "Rust", "Bolt", "Wheeze", "Knuckle", "Saint", "Doctor", "Comrade"];
@@ -65,15 +80,19 @@ function isDamaging(trickId: string): boolean {
 
 /**
  * Ghost stat budget — the ladder itself. Every personality fields the same
- * point budget per dog; ALLOC is a *flavor* weight for how those points spread,
- * not the points themselves (the old proportional scaling starved aggressive
- * and feral ghosts into free wins). Pressure is added outside the rng stream,
- * so one seed breeds the same dog at every pressure — only harder — and the
- * ladder climbs monotonically instead of re-rolling.
+ * point budget per dog (except aggressive, which fields PERSONALITY_BUDGET_DELTA
+ * fewer points so a fresh kennel is never auto-locked out of one week in eight);
+ * ALLOC is a *flavor* weight for how those points spread, not the points
+ * themselves (the old proportional scaling starved aggressive and feral ghosts
+ * into free wins). Pressure is added outside the rng stream, so one seed breeds
+ * the same dog at every pressure — only harder — and the ladder climbs
+ * monotonically instead of re-rolling.
  *
- * Calibrated against the untouched starter trio in tests/ghost-ladder.test.ts:
- * starter win rate lands 0.55-0.75 at pressure 0, falls every rung, and sits at
- * or below 0.35 at pressure 6 (Crown Pit, late seasons).
+ * Calibrated against the untouched starter trio in tests/ghost-ladder.test.ts
+ * across two independent seed families: starter win rate lands 0.55-0.75 at
+ * pressure 0, every personality stays in 0.25-0.80 (aggressive hardest), the
+ * curve falls every rung, and sits at or below 0.35 at pressure 6 (Crown Pit,
+ * late seasons).
  */
 const BUDGET_BASE = 9;
 const BUDGET_SKILL = 6;
@@ -127,6 +146,7 @@ function makeGhostDog(
   const alloc = ALLOC[personality];
   const budget =
     BUDGET_BASE +
+    PERSONALITY_BUDGET_DELTA[personality] +
     Math.round(skill * BUDGET_SKILL) +
     (idx === 0 ? BUDGET_FRONT : 0) +
     Math.round(Math.max(0, pressure) * BUDGET_PER_PRESSURE);

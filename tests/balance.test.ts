@@ -5,16 +5,16 @@ import { buildArchetypes, runBalanceReport } from "../src/league/balance";
 describe("balance harness", () => {
   it("is deterministic — two runs equal", () => {
     expect(runBalanceReport()).toEqual(runBalanceReport());
-  });
+  }, 120000);
 
-  it("runs at least 120 round-robin bouts over the reported seeds", () => {
+  it("runs the full 30-pass round-robin (at least 1650 bouts) over the reported seeds", () => {
     const report = runBalanceReport();
-    expect(report.bouts).toBeGreaterThanOrEqual(120);
+    expect(report.bouts).toBeGreaterThanOrEqual(1650);
     expect(report.seeds.length).toBeGreaterThan(0);
     for (const outcome of report.archetypes) {
       expect(outcome.bouts).toBeGreaterThan(0);
     }
-  });
+  }, 120000);
 
   it("keeps every strain archetype win rate within 0.25-0.75 vs the field", () => {
     const report = runBalanceReport();
@@ -30,7 +30,7 @@ describe("balance harness", () => {
         `${outcome.id} winRate ${outcome.winRate.toFixed(3)}`,
       ).toBeLessThanOrEqual(0.75);
     }
-  });
+  }, 120000);
 
 
   it("keeps every personality archetype win rate within 0.25-0.75 vs the field", () => {
@@ -47,7 +47,7 @@ describe("balance harness", () => {
         `${outcome.id} winRate ${outcome.winRate.toFixed(3)}`,
       ).toBeLessThanOrEqual(0.75);
     }
-  });
+  }, 120000);
   it("keeps every strain win rate within 0.25-0.75 vs the isolated strain field", () => {
     const report = runBalanceReport();
     const strains = report.archetypes.filter((a) => a.kind === "strain" && a.strainField);
@@ -63,7 +63,7 @@ describe("balance harness", () => {
         `${outcome.id} strainField winRate ${rate.toFixed(3)}`,
       ).toBeLessThanOrEqual(0.75);
     }
-  });
+  }, 120000);
 
   it("plays every trick id in at least one archetype bite order", () => {
     const played = new Set<string>();

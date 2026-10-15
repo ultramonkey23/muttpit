@@ -29,7 +29,7 @@ export interface ArchetypeOutcome extends Pick<Archetype, "id" | "kind"> {
 }
 
 export interface BalanceReport {
-  /** total bouts simulated (whole round-robin passes, never below 120) */
+  /** total bouts simulated (whole round-robin passes, never below 1650) */
   bouts: number;
   seeds: number[];
   archetypes: ArchetypeOutcome[];
@@ -51,7 +51,13 @@ const STRAIN_POOL: StrainId[] = ["mongrel", "bonehound", "grem", "cur", "brute",
 const PERSONALITY_CHASSIS: StrainId[] = ["mongrel", "bonehound", "cur"];
 
 const BASE_SEEDS = [101, 211, 307, 401, 503, 607];
-const MIN_BOUTS = 120;
+/** 30 round-robin passes over the derived seed schedule (seedAt offsets past
+ * BASE_SEEDS by 104729): 1650 bouts, so each band rate measures at ~±0.02
+ * instead of the 3-pass sample's ~±0.09. The D2a edge-band readings (grem
+ * 0.267 / pupp 0.733 isolated) were 15-bout sampling noise sitting on the
+ * 0.05 edge band, not field truth; the 30-iteration schedule is the measured
+ * truth the gates read. Balance data, not math: no battle formula moves. */
+const MIN_BOUTS = 1650;
 
 function strainDogs(strain: StrainId): Dog[] {
   return STRAIN_ORDERS.map((order, i) => ({
